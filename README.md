@@ -57,6 +57,6 @@ O banco de dados MySQL gerencia o relacionamento das seguintes entidades:
 
 ## 🧑‍💻 Autor
 
-Desenvolvido por **Alex Saldanha** 
+Desenvolvido por **Alexandro Saldan Pereira** 
 *   **LinkedIn:** [Insira o link do seu LinkedIn aqui]
 *   **E-mail:** [Insira o seu e-mail aqui]
