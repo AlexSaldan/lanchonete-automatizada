@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: lanchonete-automatizada
+  datasource:
+    # Nome do banco atualizado para o que existe no seu MySQL
+    url: jdbc:mysql://localhost:3306/lanchonete-automatizada
+    username: root
+    password: ale123
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    # O Hibernate 6+ detecta o MySQL automaticamente, então a linha do dialect foi removida para evitar o aviso amarelo no log
