@@ -94,7 +94,8 @@ public class ComandaService {
         Subcomanda novaSubcomanda = new Subcomanda(request.nomeCliente(), request.cpfCliente());
         sessao.adicionarSubcomanda(novaSubcomanda);
 
-        Subcomanda salva = subcomandaRepository.save(novaSubcomanda);
+        SessaoMesa sessaoSalva = sessaoMesaRepository.save(sessao);
+        Subcomanda salva = sessaoSalva.getSubcomandas().getLast();
         return mapearSubcomandaParaResponse(salva);
     }
 
