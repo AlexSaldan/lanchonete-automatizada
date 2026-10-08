@@ -191,7 +191,7 @@ do produto e ainda não está integralmente implementado.
 
 ### Pré-requisitos
 
-- Java JDK 21.
+- Java JDK 25.
 - MySQL Server.
 - Maven ou Maven Wrapper disponível no projeto.
 - Git.
