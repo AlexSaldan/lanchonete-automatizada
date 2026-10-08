@@ -49,6 +49,7 @@ class ComandaServiceTest {
 
     @BeforeEach
     void setUp() {
+
         mesa = new Mesa(1, 4);
         mesa.setId(1L);
         mesa.setStatus(StatusMesa.DISPONIVEL);
@@ -57,176 +58,356 @@ class ComandaServiceTest {
         sessao = new SessaoMesa(mesa);
         sessao.setId(1L);
 
-        subcomanda = new Subcomanda("João", "123.456.789-00");
+        subcomanda = new Subcomanda(
+                "João",
+                "123.456.789-00"
+        );
         subcomanda.setId(1L);
         subcomanda.setSessaoMesa(sessao);
 
-        produto = new Produto("X-Bacon", "Hambúrguer com bacon",
-                CategoriaProduto.LANCHE, new BigDecimal("22.90"), 12);
+        produto = new Produto(
+                "X-Bacon",
+                "Hambúrguer com bacon",
+                CategoriaProduto.LANCHE,
+                new BigDecimal("22.90"),
+                12
+        );
         produto.setId(1L);
     }
 
     @Test
     @DisplayName("Deve abrir sessão com sucesso quando mesa está disponível e token é válido")
     void deveAbrirSessaoComSucesso() {
+
         AberturaSessaoRequest request = new AberturaSessaoRequest(
-                1, "token-valido-123", "João", "123.456.789-00"
+                1,
+                "token-valido-123",
+                "João",
+                "123.456.789-00"
         );
 
-        when(mesaRepository.findByNumero(1)).thenReturn(Optional.of(mesa));
-        when(sessaoMesaRepository.save(any(SessaoMesa.class))).thenAnswer(inv -> {
-            SessaoMesa s = inv.getArgument(0);
-            s.setId(1L);
-            return s;
-        });
-        when(subcomandaRepository.save(any(Subcomanda.class))).thenAnswer(inv -> {
-            Subcomanda sub = inv.getArgument(0);
-            sub.setId(1L);
-            return sub;
-        });
-        when(sessaoMesaRepository.findById(1L)).thenReturn(Optional.of(sessao));
-        when(itemPedidoRepository.findBySubcomandaId(any())).thenReturn(List.of());
+        when(mesaRepository.findByNumero(1))
+                .thenReturn(Optional.of(mesa));
 
-        ExtratoMesaResponse response = comandaService.abrirSessao(request);
+        when(sessaoMesaRepository.save(any(SessaoMesa.class)))
+                .thenAnswer(invocation -> {
+                    SessaoMesa sessaoSalva =
+                            invocation.getArgument(0);
+
+                    sessaoSalva.setId(1L);
+
+                    return sessaoSalva;
+                });
+
+        when(sessaoMesaRepository.findById(1L))
+                .thenReturn(Optional.of(sessao));
+
+        ExtratoMesaResponse response =
+                comandaService.abrirSessao(request);
 
         assertNotNull(response);
-        assertEquals(StatusMesa.OCUPADA, mesa.getStatus());
-        verify(mesaRepository).save(mesa);
-        verify(sessaoMesaRepository).save(any(SessaoMesa.class));
+
+        assertEquals(
+                StatusMesa.OCUPADA,
+                mesa.getStatus()
+        );
+
+        assertEquals(
+                1L,
+                response.sessaoId()
+        );
+
+        assertEquals(
+                1,
+                response.numeroMesa()
+        );
+
+        verify(mesaRepository)
+                .save(mesa);
+
+        verify(sessaoMesaRepository)
+                .save(any(SessaoMesa.class));
+
+        verify(sessaoMesaRepository)
+                .findById(1L);
     }
 
     @Test
     @DisplayName("Deve lançar exceção quando token QR Code for inválido")
     void deveLancarExcecaoQuandoTokenInvalido() {
+
         AberturaSessaoRequest request = new AberturaSessaoRequest(
-                1, "token-invalido", "João", null
+                1,
+                "token-invalido",
+                "João",
+                null
         );
 
-        when(mesaRepository.findByNumero(1)).thenReturn(Optional.of(mesa));
+        when(mesaRepository.findByNumero(1))
+                .thenReturn(Optional.of(mesa));
 
-        IllegalArgumentException excecao = assertThrows(
-                IllegalArgumentException.class,
-                () -> comandaService.abrirSessao(request)
+        IllegalArgumentException excecao =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> comandaService.abrirSessao(request)
+                );
+
+        assertEquals(
+                "Token do QR Code inválido para esta mesa.",
+                excecao.getMessage()
         );
 
-        assertEquals("Token do QR Code inválido para esta mesa.", excecao.getMessage());
-        verify(mesaRepository, never()).save(any());
+        verify(mesaRepository, never())
+                .save(any());
     }
 
     @Test
     @DisplayName("Deve lançar exceção quando mesa já estiver ocupada")
     void deveLancarExcecaoQuandoMesaOcupada() {
+
         mesa.setStatus(StatusMesa.OCUPADA);
 
-        AberturaSessaoRequest request = new AberturaSessaoRequest(
-                1, "token-valido-123", "João", null
+        AberturaSessaoRequest request =
+                new AberturaSessaoRequest(
+                        1,
+                        "token-valido-123",
+                        "João",
+                        null
+                );
+
+        when(mesaRepository.findByNumero(1))
+                .thenReturn(Optional.of(mesa));
+
+        IllegalStateException excecao =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> comandaService.abrirSessao(request)
+                );
+
+        assertTrue(
+                excecao.getMessage()
+                        .contains("já possui uma sessão aberta")
         );
-
-        when(mesaRepository.findByNumero(1)).thenReturn(Optional.of(mesa));
-
-        IllegalStateException excecao = assertThrows(
-                IllegalStateException.class,
-                () -> comandaService.abrirSessao(request)
-        );
-
-        assertTrue(excecao.getMessage().contains("já possui uma sessão aberta"));
     }
 
     @Test
     @DisplayName("Deve adicionar cliente à sessão existente")
     void deveAdicionarClienteASessao() {
+
         sessao.setStatus(StatusSessao.ABERTA);
-        AdicionarClienteRequest request = new AdicionarClienteRequest(1L, "Maria", "987.654.321-00");
 
-        when(sessaoMesaRepository.findById(1L)).thenReturn(Optional.of(sessao));
-        when(subcomandaRepository.save(any(Subcomanda.class))).thenAnswer(inv -> {
-            Subcomanda sub = inv.getArgument(0);
-            sub.setId(2L);
-            return sub;
-        });
+        AdicionarClienteRequest request =
+                new AdicionarClienteRequest(
+                        1L,
+                        "Maria",
+                        "987.654.321-00"
+                );
 
-        ExtratoSubcomandaResponse response = comandaService.adicionarCliente(request);
+        when(sessaoMesaRepository.findById(1L))
+                .thenReturn(Optional.of(sessao));
+
+        when(sessaoMesaRepository.save(any(SessaoMesa.class)))
+                .thenAnswer(invocation -> {
+
+                    SessaoMesa sessaoSalva =
+                            invocation.getArgument(0);
+
+                    sessaoSalva.getSubcomandas()
+                            .stream()
+                            .filter(sub -> sub.getId() == null)
+                            .forEach(sub -> sub.setId(2L));
+
+                    return sessaoSalva;
+                });
+
+        when(itemPedidoRepository.findBySubcomandaId(2L))
+                .thenReturn(List.of());
+
+        ExtratoSubcomandaResponse response =
+                comandaService.adicionarCliente(request);
 
         assertNotNull(response);
-        assertEquals("Maria", response.nomeCliente());
-        assertEquals(StatusPagamento.PENDENTE, response.statusPagamento());
+
+        assertEquals(
+                "Maria",
+                response.nomeCliente()
+        );
+
+        assertEquals(
+                StatusPagamento.PENDENTE,
+                response.statusPagamento()
+        );
+
+        verify(sessaoMesaRepository)
+                .save(sessao);
+
+        verify(subcomandaRepository, never())
+                .save(any());
     }
 
     @Test
     @DisplayName("Deve lançar exceção ao adicionar cliente em sessão encerrada")
     void deveLancarExcecaoAoAdicionarClienteEmSessaoEncerrada() {
+
         sessao.setStatus(StatusSessao.ENCERRADA);
-        AdicionarClienteRequest request = new AdicionarClienteRequest(1L, "Maria", null);
 
-        when(sessaoMesaRepository.findById(1L)).thenReturn(Optional.of(sessao));
+        AdicionarClienteRequest request =
+                new AdicionarClienteRequest(
+                        1L,
+                        "Maria",
+                        null
+                );
 
-        assertThrows(IllegalStateException.class,
-                () -> comandaService.adicionarCliente(request));
+        when(sessaoMesaRepository.findById(1L))
+                .thenReturn(Optional.of(sessao));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> comandaService.adicionarCliente(request)
+        );
     }
 
     @Test
     @DisplayName("Deve lançar item na subcomanda com sucesso")
     void deveLancarItemComSucesso() {
-        ItemPedidoRequest request = new ItemPedidoRequest(1L, 1L, 2, "Sem cebola");
 
-        when(subcomandaRepository.findById(1L)).thenReturn(Optional.of(subcomanda));
-        when(produtoRepository.findById(1L)).thenReturn(Optional.of(produto));
-        when(itemPedidoRepository.save(any(ItemPedido.class))).thenAnswer(inv -> {
-            ItemPedido item = inv.getArgument(0);
-            item.setId(1L);
-            return item;
-        });
+        ItemPedidoRequest request =
+                new ItemPedidoRequest(
+                        1L,
+                        1L,
+                        2,
+                        "Sem cebola"
+                );
 
-        ItemPedidoResponse response = comandaService.lancarItem(request);
+        when(subcomandaRepository.findById(1L))
+                .thenReturn(Optional.of(subcomanda));
+
+        when(produtoRepository.findById(1L))
+                .thenReturn(Optional.of(produto));
+
+        when(itemPedidoRepository.save(any(ItemPedido.class)))
+                .thenAnswer(invocation -> {
+
+                    ItemPedido item =
+                            invocation.getArgument(0);
+
+                    item.setId(1L);
+
+                    return item;
+                });
+
+        ItemPedidoResponse response =
+                comandaService.lancarItem(request);
 
         assertNotNull(response);
-        assertEquals("X-Bacon", response.nomeProduto());
-        assertEquals(2, response.quantidade());
-        assertEquals(new BigDecimal("45.80"), response.subtotal());
-        assertEquals("Sem cebola", response.observacao());
-        assertEquals(StatusPreparo.RECEBIDO, response.statusPreparo());
-        verify(subcomandaRepository).save(subcomanda);
+
+        assertEquals(
+                "X-Bacon",
+                response.nomeProduto()
+        );
+
+        assertEquals(
+                2,
+                response.quantidade()
+        );
+
+        assertEquals(
+                new BigDecimal("45.80"),
+                response.subtotal()
+        );
+
+        assertEquals(
+                "Sem cebola",
+                response.observacao()
+        );
+
+        assertEquals(
+                StatusPreparo.RECEBIDO,
+                response.statusPreparo()
+        );
+
+        verify(subcomandaRepository)
+                .save(subcomanda);
     }
 
     @Test
     @DisplayName("Deve lançar exceção quando produto não estiver disponível")
     void deveLancarExcecaoQuandoProdutoIndisponivel() {
+
         produto.setDisponivel(false);
-        ItemPedidoRequest request = new ItemPedidoRequest(1L, 1L, 1, null);
 
-        when(subcomandaRepository.findById(1L)).thenReturn(Optional.of(subcomanda));
-        when(produtoRepository.findById(1L)).thenReturn(Optional.of(produto));
+        ItemPedidoRequest request =
+                new ItemPedidoRequest(
+                        1L,
+                        1L,
+                        1,
+                        null
+                );
 
-        IllegalStateException excecao = assertThrows(
-                IllegalStateException.class,
-                () -> comandaService.lancarItem(request)
+        when(subcomandaRepository.findById(1L))
+                .thenReturn(Optional.of(subcomanda));
+
+        when(produtoRepository.findById(1L))
+                .thenReturn(Optional.of(produto));
+
+        IllegalStateException excecao =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> comandaService.lancarItem(request)
+                );
+
+        assertTrue(
+                excecao.getMessage()
+                        .contains("não está disponível")
         );
-
-        assertTrue(excecao.getMessage().contains("não está disponível"));
     }
 
     @Test
     @DisplayName("Deve buscar extrato da mesa com sucesso")
     void deveBuscarExtratoMesaComSucesso() {
-        sessao.getSubcomandas().add(subcomanda);
-        when(sessaoMesaRepository.findById(1L)).thenReturn(Optional.of(sessao));
-        when(itemPedidoRepository.findBySubcomandaId(1L)).thenReturn(List.of());
 
-        ExtratoMesaResponse response = comandaService.buscarExtratoMesa(1L);
+        sessao.getSubcomandas()
+                .add(subcomanda);
+
+        when(sessaoMesaRepository.findById(1L))
+                .thenReturn(Optional.of(sessao));
+
+        when(itemPedidoRepository.findBySubcomandaId(1L))
+                .thenReturn(List.of());
+
+        ExtratoMesaResponse response =
+                comandaService.buscarExtratoMesa(1L);
 
         assertNotNull(response);
-        assertEquals(1, response.numeroMesa());
-        assertEquals(StatusSessao.ABERTA, response.statusSessao());
-        assertEquals(1, response.subcomandas().size());
+
+        assertEquals(
+                1,
+                response.numeroMesa()
+        );
+
+        assertEquals(
+                StatusSessao.ABERTA,
+                response.statusSessao()
+        );
+
+        assertEquals(
+                1,
+                response.subcomandas().size()
+        );
     }
 
     @Test
     @DisplayName("Deve lançar exceção quando sessão não for encontrada no extrato")
     void deveLancarExcecaoQuandoSessaoNaoEncontrada() {
-        when(sessaoMesaRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(SessaoNaoEncontradaException.class,
-                () -> comandaService.buscarExtratoMesa(99L));
+        when(sessaoMesaRepository.findById(99L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                SessaoNaoEncontradaException.class,
+                () -> comandaService.buscarExtratoMesa(99L)
+        );
     }
 }
+
 
