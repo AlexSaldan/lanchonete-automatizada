@@ -50,7 +50,36 @@ public class ProdutoController {
         log.info("Consulta realizada com sucesso. Total de produtos disponíveis retornados: {}", response.size());
         return ResponseEntity.ok(response);
     }
+     
+/**
+ * Consulta um produto pelo identificador.
+ *
+ * @param id identificador do produto
+ * @return dados do produto encontrado
+ */
+@GetMapping("/{id}")
+public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
+    log.debug("Consultando produto com ID: {}", id);
 
+    Produto produto = produtoService.buscarPorId(id);
+
+    return ResponseEntity.ok(ProdutoResponse.fromEntity(produto));
+}
+
+/**
+ * Desativa um produto do cardápio.
+ *
+ * @param id identificador do produto
+ * @return HTTP 204 No Content
+ */
+@PatchMapping("/{id}/disponivel")
+public ResponseEntity<Void> desativarProduto(@PathVariable Long id) {
+    log.info("Solicitada desativação do produto com ID: {}", id);
+
+    produtoService.desativarProduto(id);
+
+    return ResponseEntity.noContent().build();
+}
     /**
      * Cadastra um novo produto no cardápio do sistema.
      *
