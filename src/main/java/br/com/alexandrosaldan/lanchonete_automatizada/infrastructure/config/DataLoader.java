@@ -24,9 +24,10 @@ public class DataLoader {
      * @param mesaRepository Repositório para verificar e salvar as mesas
      * @return CommandLineRunner configurado
      */
+    // Garante que rode no ambiente local, mas pode ser desativado em prod
     @Bean
-    @Profile({"dev", "default", "test"}) // Garante que rode no ambiente local, mas pode ser desativado em prod
-    public CommandLineRunner initData(MesaRepository mesaRepository) {
+    @Profile({"dev", "default", "test"})
+    CommandLineRunner initData(MesaRepository mesaRepository) {
         return args -> {
             // Verifica se o banco já possui dados para evitar duplicidade em reinicializações
             if (mesaRepository.count() == 0) {
