@@ -5,14 +5,27 @@ import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.Produto;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.ProdutoRequest;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.ProdutoResponse;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.net.URI;
 import java.util.List;
 
+/**
+ * Controller REST responsável pelo gerenciamento e consulta do Cardápio / Produtos.
+ * 
+ * Arquitetura e Segurança:
+ * - Camada de entrada desacoplada da camada de domínio através de DTOs (ProdutoRequest/ProdutoResponse).
+ * - Sanitização e validação de entrada garantidas pelo Bean Validation (@Valid).
+ * - Utilização de SLF4J para rastreamento de logs operacionais sem expor dados sensíveis.
+ */
 @RestController
 @RequestMapping("/produtos")
 public class ProdutoController {
+
+    private static final Logger log = LoggerFactory.getLogger(ProdutoController.class);
 
     private final ProdutoService produtoService;
 
@@ -20,22 +33,35 @@ public class ProdutoController {
         this.produtoService = produtoService;
     }
 
+    /**
+     * Lista todos os produtos que estão marcados como disponíveis para exibição no totem/cardápio digital.
+     *
+     * @return Lista de DTOs de resposta de produtos disponíveis (HTTP 200 OK)
+     */
     @GetMapping
     public ResponseEntity<List<ProdutoResponse>> listarDisponiveis() {
-        System.out.println(">>> [DEBUG GET] Iniciando listagem...");
+        log.debug("Iniciando consulta de produtos disponíveis para exibição no cardápio");
+        
         List<Produto> produtos = produtoService.listarDisponiveis();
         List<ProdutoResponse> response = produtos.stream()
                 .map(ProdutoResponse::fromEntity)
                 .toList();
-        System.out.println(">>> [DEBUG GET] Sucesso! Retornando " + response.size() + " produtos.");
+                
+        log.info("Consulta realizada com sucesso. Total de produtos disponíveis retornados: {}", response.size());
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Cadastra um novo produto no cardápio do sistema.
+     *
+     * @param request DTO validado contendo os dados de criação do produto
+     * @return DTO com o produto criado e cabeçalho Location apontando para o novo recurso (HTTP 201 Created)
+     */
     @PostMapping
     public ResponseEntity<ProdutoResponse> criar(@Valid @RequestBody ProdutoRequest request) {
-        System.out.println(">>> [DEBUG POST 1] Request recebido: " + request);
+        log.info("Recebida requisição para cadastrar novo produto: '{}' da categoria '{}'", request.nome(), request.categoria());
         
-        // 1. Converte o DTO de entrada para a Entity de domínio
+        // Converte DTO de requisição para Entidade de Domínio
         Produto novoProduto = new Produto(
             request.nome(),
             request.descricao(),
@@ -43,21 +69,17 @@ public class ProdutoController {
             request.preco(),
             request.tempoPreparoMinutos()
         );
-        System.out.println(">>> [DEBUG POST 2] Entity criada. Chamando service para salvar...");
         
-        // 2. Delega a regra de negócio para o Service
+        // Processa a regra de negócio na camada de serviço
         Produto produtoSalvo = produtoService.criarProduto(novoProduto);
-        System.out.println(">>> [DEBUG POST 3] Service retornou! ID do produto salvo: " + produtoSalvo.getId());
+        log.info("Produto salvo com sucesso no banco de dados. ID gerado: {}", produtoSalvo.getId());
         
-        // 3. Converte para DTO de resposta
+        // Mapeia para DTO de resposta imutável
         ProdutoResponse responseDto = ProdutoResponse.fromEntity(produtoSalvo);
-        System.out.println(">>> [DEBUG POST 4] DTO de resposta criado com sucesso.");
         
-        // 4. Monta e retorna a resposta HTTP
-        ResponseEntity<ProdutoResponse> response = ResponseEntity.created(URI.create("/produtos/" + produtoSalvo.getId()))
-                             .body(responseDto);
-                             
-        System.out.println(">>> [DEBUG POST 5] Resposta HTTP montada. Finalizando método.");
-        return response;
+        // Constrói a URI do recurso criado
+        URI location = URI.create("/produtos/" + produtoSalvo.getId());
+        
+        return ResponseEntity.created(location).body(responseDto);
     }
 }

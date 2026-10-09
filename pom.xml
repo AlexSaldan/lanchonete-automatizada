@@ -43,6 +43,14 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
+		<!-- Anotações de teste autoconfiguráveis (@WebMvcTest, @DataJpaTest,
+		etc.) -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-test-autoconfigure</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -91,5 +99,6 @@
 			</plugin>
 		</plugins>
 	</build>
+
 
 </project>

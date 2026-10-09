@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/mesas")
+@RequestMapping("/mesas/{numero}")
 public class MesaController {
 
     private final MesaService mesaService;
@@ -16,19 +16,19 @@ public class MesaController {
         this.mesaService = mesaService;
     }
 
-    @GetMapping("/{numero}")
+    @GetMapping
     public ResponseEntity<Mesa> buscarPorNumero(@PathVariable Integer numero) {
         Mesa mesa = mesaService.buscarPorNumero(numero);
         return ResponseEntity.ok(mesa);
     }
 
-    @PatchMapping("/{numero}/ocupar")
+    @PatchMapping("/ocupar")
     public ResponseEntity<Mesa> ocuparMesa(@PathVariable Integer numero) {
         Mesa mesaOcupada = mesaService.ocuparMesa(numero);
         return ResponseEntity.ok(mesaOcupada);
     }
 
-    @PatchMapping("/{numero}/liberar")
+    @PatchMapping("/liberar")
     public ResponseEntity<Mesa> liberarMesa(@PathVariable Integer numero) {
         Mesa mesaLiberada = mesaService.liberarMesa(numero);
         return ResponseEntity.ok(mesaLiberada);
