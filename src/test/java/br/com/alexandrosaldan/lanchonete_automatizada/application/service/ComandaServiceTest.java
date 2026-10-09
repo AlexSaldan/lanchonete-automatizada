@@ -408,6 +408,61 @@ class ComandaServiceTest {
                 () -> comandaService.buscarExtratoMesa(99L)
         );
     }
+    
+    @Test
+    @DisplayName("Não deve lançar item quando a sessão estiver encerrada")
+    void naoDeveLancarItemEmSessaoEncerrada() {
+
+        sessao.setStatus(StatusSessao.ENCERRADA);
+
+        ItemPedidoRequest request = new ItemPedidoRequest(
+                1L,
+                1L,
+                1,
+                null
+        );
+
+        when(subcomandaRepository.findById(1L))
+                .thenReturn(Optional.of(subcomanda));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> comandaService.lancarItem(request)
+        );
+
+        verify(itemPedidoRepository, never())
+                .save(any(ItemPedido.class));
+    }
+
+    @Test
+    @DisplayName("Não deve lançar item quando a subcomanda estiver paga")
+    void naoDeveLancarItemEmSubcomandaPaga() {
+
+        subcomanda.setStatusPagamento(StatusPagamento.PAGO);
+
+        ItemPedidoRequest request = new ItemPedidoRequest(
+                1L,
+                1L,
+                1,
+                null
+        );
+
+        when(subcomandaRepository.findById(1L))
+                .thenReturn(Optional.of(subcomanda));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> comandaService.lancarItem(request)
+        );
+
+        verify(produtoRepository, never()).findById(anyLong());
+
+        verify(itemPedidoRepository, never())
+                .save(any(ItemPedido.class));
+    }
 }
+
+
+
 
 
