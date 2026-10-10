@@ -1,13 +1,15 @@
 spring:
   application:
     name: lanchonete-automatizada
+
   datasource:
     url: jdbc:mysql://localhost:3306/lanchonete_automatizada
     username: root
     password: ale123
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
-    open-in-view: false  # <-- ADICIONE APENAS ESTA LINHA
+    open-in-view: false
