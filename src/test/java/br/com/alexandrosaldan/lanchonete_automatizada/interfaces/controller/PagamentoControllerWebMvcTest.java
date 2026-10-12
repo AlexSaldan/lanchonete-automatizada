@@ -96,6 +96,38 @@ class PagamentoControllerWebMvcTest {
                 ));
     }
 
+    @Test
+    @DisplayName("Deve confirmar pagamento com HTTP 200")
+    void deveConfirmarPagamentoComSucesso() throws Exception {
+        Subcomanda subcomanda = criarSubcomanda(StatusPagamento.PAGO);
+
+        when(pagamentoService.confirmarPagamento(1L))
+                .thenReturn(subcomanda);
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/1/confirmar"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subcomandaId").value(1))
+                .andExpect(jsonPath("$.valorTotal").value(45.80))
+                .andExpect(jsonPath("$.statusPagamento").value("PAGO"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar HTTP 409 ao confirmar pagamento em estado inválido")
+    void deveRetornar409AoConfirmarPagamentoEmEstadoInvalido() throws Exception {
+        when(pagamentoService.confirmarPagamento(1L))
+                .thenThrow(new IllegalStateException(
+                        "Somente pagamentos em processamento podem ser confirmados."
+                ));
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/1/confirmar"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflito de Regra de Negócio"))
+                .andExpect(jsonPath("$.message").value(
+                        "Somente pagamentos em processamento podem ser confirmados."
+                ));
+    }
+
     private Subcomanda criarSubcomanda(StatusPagamento status) {
         Subcomanda subcomanda = new Subcomanda("João", null);
         subcomanda.setId(1L);

@@ -42,4 +42,17 @@ public class PagamentoController {
 
         return ResponseEntity.ok(PagamentoResponse.fromEntity(subcomanda));
     }
+
+    @PatchMapping("/subcomandas/{subcomandaId}/confirmar")
+    public ResponseEntity<PagamentoResponse> confirmarPagamento(
+            @PathVariable Long subcomandaId) {
+
+        log.info("Solicitação para confirmar pagamento da subcomanda ID {}", subcomandaId);
+
+        Subcomanda subcomanda = pagamentoService.confirmarPagamento(subcomandaId);
+
+        log.info("Pagamento confirmado para a subcomanda ID {}", subcomandaId);
+
+        return ResponseEntity.ok(PagamentoResponse.fromEntity(subcomanda));
+    }
 }
