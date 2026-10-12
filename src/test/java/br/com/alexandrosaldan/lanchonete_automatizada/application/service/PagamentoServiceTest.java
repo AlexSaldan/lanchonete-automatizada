@@ -41,7 +41,7 @@ class PagamentoServiceTest {
     @Test
     void deveIniciarPagamentoPendente() {
 
-        when(subcomandaRepository.findById(1L))
+	when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         when(subcomandaRepository.save(any(Subcomanda.class)))
@@ -59,7 +59,7 @@ class PagamentoServiceTest {
 
         subcomanda.setStatusPagamento(StatusPagamento.PAGO);
 
-        when(subcomandaRepository.findById(1L))
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         assertThrows(
@@ -75,7 +75,7 @@ class PagamentoServiceTest {
 
         subcomanda.setValorTotal(BigDecimal.ZERO);
 
-        when(subcomandaRepository.findById(1L))
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         assertThrows(

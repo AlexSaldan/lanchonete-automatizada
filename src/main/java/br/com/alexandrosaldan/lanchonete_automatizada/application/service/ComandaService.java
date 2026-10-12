@@ -168,7 +168,7 @@ public class ComandaService {
         );
 
         Subcomanda subcomanda = subcomandaRepository
-                .findById(request.subcomandaId())
+		.buscarPorIdComBloqueio(request.subcomandaId())
                 .orElseThrow(() -> new SubcomandaNaoEncontradaException(
                         "Subcomanda não encontrada."
                 ));

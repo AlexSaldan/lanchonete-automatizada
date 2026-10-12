@@ -279,7 +279,7 @@ class ComandaServiceTest {
                         "Sem cebola"
                 );
 
-        when(subcomandaRepository.findById(1L))
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         when(produtoRepository.findById(1L))
@@ -344,7 +344,7 @@ class ComandaServiceTest {
                         null
                 );
 
-        when(subcomandaRepository.findById(1L))
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         when(produtoRepository.findById(1L))
@@ -422,7 +422,7 @@ class ComandaServiceTest {
                 null
         );
 
-        when(subcomandaRepository.findById(1L))
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         assertThrows(
@@ -447,7 +447,7 @@ class ComandaServiceTest {
                 null
         );
 
-        when(subcomandaRepository.findById(1L))
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         assertThrows(

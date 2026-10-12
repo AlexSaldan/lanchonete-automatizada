@@ -41,7 +41,12 @@ public class PagamentoService {
     @Transactional
     public Subcomanda iniciarPagamento(Long subcomandaId) {
 
-        Subcomanda subcomanda = buscarSubcomanda(subcomandaId);
+	// Bloqueia a subcomanda durante o início do pagamento.
+	Subcomanda subcomanda = subcomandaRepository
+	        .buscarPorIdComBloqueio(subcomandaId)
+	        .orElseThrow(() -> new SubcomandaNaoEncontradaException(
+	                "Subcomanda não encontrada com ID: " + subcomandaId
+	        ));
 
         if (subcomanda.getStatusPagamento() != StatusPagamento.PENDENTE) {
             throw new IllegalStateException(
