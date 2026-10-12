@@ -17,9 +17,18 @@ A proposta do sistema é permitir que clientes utilizem um QR Code
 para acessar uma mesa, iniciem uma sessão de atendimento e
 organizem seus consumos individualmente por meio de subcomandas.
 
-O projeto também prevê a evolução para funcionalidades como
-acompanhamento de pedidos em tempo real, pagamentos individuais
-e integração com sistemas automatizados de preparo.
+O sistema já possui funcionalidades de gerenciamento de mesas,
+produtos, sessões de atendimento e subcomandas, além de um fluxo
+de pagamentos individuais com confirmação administrativa simulada.
+
+O fluxo de pagamentos permite consultar valores, iniciar o
+processamento e confirmar o pagamento de uma subcomanda,
+respeitando as regras de transição entre os estados
+PENDENTE, PROCESSANDO e PAGO.
+
+Entre as evoluções planejadas estão o acompanhamento de pedidos
+em tempo real, a integração com sistemas automatizados de preparo
+e a integração com serviços reais de pagamento.
 
 Este repositório faz parte do meu portfólio profissional e tem
 como objetivo demonstrar conhecimentos em desenvolvimento backend,
@@ -50,6 +59,7 @@ práticas de Engenharia de Software.
 | Spring Data JPA | Persistência de dados |
 | Spring Validation | Validação de dados |
 | MySQL | Banco de dados relacional |
+| H2 Database | Banco de dados em memória para testes automatizados |
 | Maven | Gerenciamento de dependências e build |
 | JUnit | Testes automatizados |
 | Mockito | Simulação de dependências nos testes |
@@ -109,9 +119,12 @@ controle de pagamento e valor total.
 
 ## ✅ Funcionalidades implementadas
 
-Na versão principal do projeto, estão disponíveis
-funcionalidades relacionadas aos módulos de mesas
-e produtos.
+A versão principal do projeto disponibiliza funcionalidades
+de gerenciamento de mesas, produtos e comandas, além de
+um fluxo de pagamentos individuais por subcomanda.
+
+As operações são disponibilizadas por meio de uma API REST,
+com validações, regras de negócio e tratamento de erros.
 
 ### Mesas
 
@@ -128,25 +141,39 @@ e produtos.
 - Desativação de produtos.
 - Tratamento de situações em que um produto não é encontrado.
 
+### Comandas e subcomandas
+
+- Gerenciamento de sessões de atendimento.
+- Organização do consumo individual por subcomandas.
+- Lançamento de itens em subcomandas.
+- Aplicação de regras de negócio para operações com comandas.
+- Integração do módulo de comandas à branch principal (`main`).
+
+O módulo permite organizar o atendimento de uma mesa
+e controlar o consumo individual dos clientes.
+
+### Pagamentos de subcomandas
+
+- Consulta dos dados de pagamento de uma subcomanda.
+- Início do processamento de pagamento.
+- Confirmação administrativa simulada do pagamento.
+- Controle dos estados PENDENTE, PROCESSANDO e PAGO.
+- Validação das transições entre os estados de pagamento.
+- Tratamento de operações inválidas.
+- Controle de concorrência para evitar alterações
+  indevidas durante o início do pagamento.
+
+> A confirmação de pagamento é simulada para fins
+> de demonstração das regras de negócio.
+> O sistema ainda não possui integração com
+> gateways de pagamento reais.
+
 ### Estrutura de domínio
 
 - Modelagem de sessões de mesa.
 - Modelagem de subcomandas individuais.
 - Enumerações para estados de mesas, sessões e pagamentos.
 - Repositórios para persistência das entidades.
-
-## 🚧 Funcionalidades em desenvolvimento
-
-### API de comandas
-
-A implementação da API de comandas está sendo
-desenvolvida em uma branch específica.
-
-Essa etapa contempla a evolução dos fluxos de
-sessões de mesa, subcomandas e itens.
-
-A funcionalidade ainda não está integrada
-à branch principal (`main`).
 
 ## 🗺️ Roadmap
 
@@ -157,10 +184,13 @@ As próximas etapas planejadas incluem:
 - [x] Serviços de mesas e produtos.
 - [x] Controllers de mesas e produtos.
 - [x] Modelagem inicial de sessões e subcomandas.
-- [ ] Integração da API de comandas à `main`.
+- [x] Integração da API de comandas à `main`.
+- [x] Implementação do fluxo de pagamentos de subcomandas.
+- [x] Testes automatizados com H2 em memória.
+- [x] Teste de concorrência com MySQL e bloqueio pessimista.
 - [ ] Evolução das migrações SQL.
 - [ ] Atualizações em tempo real com WebSocket.
-- [ ] Integração de pagamentos.
+- [ ] Integração com gateway de pagamento real.
 - [ ] Mecanismos adicionais de validação e antifraude.
 - [ ] Documentação interativa com OpenAPI/Swagger.
 - [ ] Containerização com Docker.
@@ -201,13 +231,11 @@ do produto e ainda não está integralmente implementado.
 ```bash
 git clone https://github.com/AlexSaldan/lanchonete-automatizada.git
 ```
-
 ### 2. Acessar a pasta
 
 ```bash
 cd lanchonete-automatizada
 ```
-
 ### 3. Configurar o banco de dados
 
 Crie um banco de dados MySQL para a aplicação:
@@ -240,41 +268,50 @@ correta para que a aplicação consiga iniciar.
 
 ## 🧪 Testes automatizados
 
-O projeto utiliza JUnit e Mockito para testar
-comportamentos dos serviços.
+O projeto possui testes automatizados para validar
+as regras de negócio, os endpoints HTTP e o comportamento
+da persistência de dados.
 
-Entre os módulos com testes unitários estão:
+São utilizados JUnit, Mockito, Spring Boot Test e H2.
 
-- `MesaService`
-- `ProdutoService`
+### Testes padrão com H2
 
-Para executar os testes:
+Os testes padrão utilizam o banco H2 em memória,
+permitindo sua execução sem um servidor MySQL local.
+
+Na última execução validada, 45 testes passaram
+com sucesso.
+
+Para executar:
 
 ```bash
-./mvnw test
+./mvnw clean test
 ```
 
-### Testes com H2 e MySQL
+### Teste de concorrência com MySQL
 
-Os testes padrão utilizam H2 em memória e não exigem MySQL instalado.
+O projeto também possui o teste de integração
+`SubcomandaRepositoryIT`, que utiliza MySQL 8.
 
-Para executar os testes padrão:
+Esse teste valida o uso de bloqueio pessimista
+para controlar operações concorrentes em subcomandas.
 
-    ./mvnw clean test
+Requisitos:
 
-O teste de concorrência SubcomandaRepositoryIT utiliza MySQL 8
-para validar o bloqueio pessimista.
+- MySQL disponível em `localhost:3306`.
+- Banco de testes `lanchonete_automatizada_test`.
+- Usuário com permissões no banco de testes.
+- Variáveis `DB_TEST_USER` e `DB_TEST_PASSWORD` configuradas.
 
-Requisitos: MySQL em localhost:3306, banco
-lanchonete_automatizada_test e usuário com permissões.
+Para executar somente esse teste:
 
-Configure as variáveis DB_TEST_USER e DB_TEST_PASSWORD
-e execute:
+```bash
+./mvnw -Dtest=SubcomandaRepositoryIT test
+```
 
-    ./mvnw -Dtest=SubcomandaRepositoryIT test
-
-Atenção: o perfil mysql-test utiliza ddl-auto: create-drop.
-Utilize exclusivamente um banco destinado a testes.
+> **Atenção:** o perfil `mysql-test` utiliza
+> `ddl-auto: create-drop`. Execute esse teste
+> exclusivamente em um banco destinado a testes.
 
 ## 🌿 Versionamento
 
@@ -292,6 +329,21 @@ O histórico utiliza convenções como:
 
 Essa abordagem busca manter as alterações
 rastreáveis e facilitar a revisão do código.
+
+### Pull Requests relevantes
+
+O projeto evolui por meio de branches específicas
+e Pull Requests, permitindo revisar as alterações
+antes de integrá-las à branch principal (`main`).
+
+Algumas entregas realizadas:
+
+- [PR #4 — API de comandas](https://github.com/AlexSaldan/lanchonete-automatizada/pull/4)
+- [PR #5 — Evolução do módulo de produtos](https://github.com/AlexSaldan/lanchonete-automatizada/pull/5)
+- [PR #6 — Pagamentos de subcomandas](https://github.com/AlexSaldan/lanchonete-automatizada/pull/6)
+
+Os Pull Requests registram a evolução das funcionalidades,
+as alterações realizadas e o processo de revisão do código.
 
 ## 👨‍💻 Autor
 
