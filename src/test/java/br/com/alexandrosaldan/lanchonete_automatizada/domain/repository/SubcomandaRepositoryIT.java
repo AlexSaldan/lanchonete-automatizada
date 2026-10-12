@@ -19,8 +19,8 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
-@ActiveProfiles("test")
-class SubcomandaRepositoryIntegrationTest {
+@ActiveProfiles("mysql-test")
+class SubcomandaRepositoryIT {
 
     @Autowired
     private MesaRepository mesaRepository;

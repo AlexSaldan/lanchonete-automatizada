@@ -254,6 +254,28 @@ Para executar os testes:
 ./mvnw test
 ```
 
+### Testes com H2 e MySQL
+
+Os testes padrão utilizam H2 em memória e não exigem MySQL instalado.
+
+Para executar os testes padrão:
+
+    ./mvnw clean test
+
+O teste de concorrência SubcomandaRepositoryIT utiliza MySQL 8
+para validar o bloqueio pessimista.
+
+Requisitos: MySQL em localhost:3306, banco
+lanchonete_automatizada_test e usuário com permissões.
+
+Configure as variáveis DB_TEST_USER e DB_TEST_PASSWORD
+e execute:
+
+    ./mvnw -Dtest=SubcomandaRepositoryIT test
+
+Atenção: o perfil mysql-test utiliza ddl-auto: create-drop.
+Utilize exclusivamente um banco destinado a testes.
+
 ## 🌿 Versionamento
 
 O desenvolvimento é organizado por branches,
