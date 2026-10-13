@@ -474,7 +474,7 @@ class ComandaServiceTest {
                 null
         );
 
-        when(subcomandaRepository.findById(1L))
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
 
         assertThrows(
