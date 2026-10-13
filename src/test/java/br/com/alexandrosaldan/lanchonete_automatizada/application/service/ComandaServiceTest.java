@@ -460,6 +460,33 @@ class ComandaServiceTest {
         verify(itemPedidoRepository, never())
                 .save(any(ItemPedido.class));
     }
+    
+    @Test
+    @DisplayName("Não deve lançar item quando o pagamento estiver processando")
+    void naoDeveLancarItemEmSubcomandaProcessandoPagamento() {
+
+        subcomanda.setStatusPagamento(StatusPagamento.PROCESSANDO);
+
+        ItemPedidoRequest request = new ItemPedidoRequest(
+                1L,
+                1L,
+                1,
+                null
+        );
+
+        when(subcomandaRepository.findById(1L))
+                .thenReturn(Optional.of(subcomanda));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> comandaService.lancarItem(request)
+        );
+
+        verify(produtoRepository, never()).findById(anyLong());
+
+        verify(itemPedidoRepository, never())
+                .save(any(ItemPedido.class));
+    }
 }
 
 
