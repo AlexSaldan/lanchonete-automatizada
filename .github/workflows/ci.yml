@@ -1,0 +1,31 @@
+name: CI - Lanchonete Automatizada
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Dar permissao ao Maven Wrapper
+        run: chmod +x ./mvnw
+
+      - name: Executar os testes
+        run: ./mvnw clean test
