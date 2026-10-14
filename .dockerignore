@@ -5,8 +5,7 @@
 .project
 .classpath
 
-target/*
-!target/*.jar
+target/
 
 *.log
 .env
