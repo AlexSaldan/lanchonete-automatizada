@@ -78,6 +78,15 @@ class PagamentoControllerWebMvcTest {
                 .andExpect(jsonPath("$.error").value("Subcomanda Não Encontrada"))
                 .andExpect(jsonPath("$.message").isNotEmpty());
     }
+    @Test
+    @DisplayName("Deve retornar HTTP 404 quando a rota não existir")
+    void deveRetornar404QuandoRotaNaoExistir() throws Exception {
+        mockMvc.perform(get("/rota-inexistente"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Recurso Não Encontrado"))
+                .andExpect(jsonPath("$.message").value("O recurso solicitado não existe."));
+    }
 
     @Test
     @DisplayName("Deve retornar HTTP 409 quando pagamento estiver em estado inválido")

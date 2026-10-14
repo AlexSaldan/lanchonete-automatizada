@@ -1,0 +1,13 @@
+.git
+.github
+.idea
+.settings
+.project
+.classpath
+
+target/*
+!target/*.jar
+
+*.log
+.env
+.env.*
