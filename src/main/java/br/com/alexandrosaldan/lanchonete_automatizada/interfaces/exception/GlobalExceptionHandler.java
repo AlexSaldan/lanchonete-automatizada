@@ -14,6 +14,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -85,7 +86,16 @@ public class GlobalExceptionHandler {
             "O corpo da requisição (JSON) está malformado ou possui tipos de dados inválidos."
         );
     }
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResourceFound(NoResourceFoundException ex) {
+        log.warn("Recurso não encontrado: {}", ex.getResourcePath());
 
+        return construirResposta(
+            HttpStatus.NOT_FOUND,
+            "Recurso Não Encontrado",
+            "O recurso solicitado não existe."
+        );
+    }
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
         log.error("Exceção não tratada capturada pelo Handler Global: ", ex);
@@ -95,7 +105,6 @@ public class GlobalExceptionHandler {
             "Ocorreu um erro inesperado. Por favor, entre em contato com o suporte ou verifique os logs."
         );
     }
-
     private String formatFieldError(FieldError error) {
         String detail = error.getDefaultMessage() != null ? error.getDefaultMessage() : "valor inválido";
         return error.getField() + ": " + detail;
