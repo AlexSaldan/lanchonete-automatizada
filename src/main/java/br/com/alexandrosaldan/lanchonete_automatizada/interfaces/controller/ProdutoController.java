@@ -13,6 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.ErroResponse;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.net.URI;
 import java.util.List;
@@ -83,9 +86,12 @@ public class ProdutoController {
         	        description = "Produto encontrado com sucesso"
         	    ),
         	    @ApiResponse(
-        	        responseCode = "404",
-        	        description = "Produto não encontrado"
-        	    )
+        	    	    responseCode = "404",
+        	    	    description = "Produto não encontrado",
+        	    	    content = @Content(
+        	    	        schema = @Schema(implementation = ErroResponse.class)
+        	    	    )
+        	    	)   
         	})
         	@GetMapping("/{id}")
         	public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
@@ -107,14 +113,18 @@ public class ProdutoController {
         	    description = "Desativa um produto do cardápio sem excluir seu registro do banco de dados."
         	)
         	@ApiResponses(value = {
+        			@ApiResponse(
+        				    responseCode = "204",
+        				    description = "Produto desativado com sucesso",
+        				    content = @Content
+        				),
         	    @ApiResponse(
-        	        responseCode = "204",
-        	        description = "Produto desativado com sucesso"
-        	    ),
-        	    @ApiResponse(
-        	        responseCode = "404",
-        	        description = "Produto não encontrado"
-        	    )
+        	    	    responseCode = "404",
+        	    	    description = "Produto não encontrado",
+        	    	    content = @Content(
+        	    	        schema = @Schema(implementation = ErroResponse.class)
+        	    	    )
+        	    	)
         	})
 @PatchMapping("/{id}/disponivel")
 public ResponseEntity<Void> desativarProduto(@PathVariable Long id) {
@@ -140,9 +150,12 @@ public ResponseEntity<Void> desativarProduto(@PathVariable Long id) {
 	        description = "Produto cadastrado com sucesso"
 	    ),
 	    @ApiResponse(
-	        responseCode = "400",
-	        description = "Dados inválidos para cadastro do produto"
-	    )
+	    	    responseCode = "400",
+	    	    description = "Dados inválidos para cadastro do produto",
+	    	    content = @Content(
+	    	        schema = @Schema(implementation = ErroResponse.class)
+	    	    )
+	    	)
 	})
 	@PostMapping
 	public ResponseEntity<ProdutoResponse> criar(
