@@ -4,6 +4,10 @@ import br.com.alexandrosaldan.lanchonete_automatizada.application.service.Produt
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.Produto;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.ProdutoRequest;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.ProdutoResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +25,10 @@ import java.util.List;
  * - Sanitização e validação de entrada garantidas pelo Bean Validation (@Valid).
  * - Utilização de SLF4J para rastreamento de logs operacionais sem expor dados sensíveis.
  */
+@Tag(
+	    name = "Produtos",
+	    description = "Gerenciamento dos produtos e do cardápio da lanchonete"
+	)
 @RestController
 @RequestMapping("/produtos")
 public class ProdutoController {
@@ -38,8 +46,16 @@ public class ProdutoController {
      *
      * @return Lista de DTOs de resposta de produtos disponíveis (HTTP 200 OK)
      */
-    @GetMapping
-    public ResponseEntity<List<ProdutoResponse>> listarDisponiveis() {
+        @Operation(
+    	    summary = "Listar produtos disponíveis",
+    	    description = "Retorna todos os produtos disponíveis para o cardápio da lanchonete."
+    	)
+    	@ApiResponse(
+    	    responseCode = "200",
+    	    description = "Produtos disponíveis listados com sucesso"
+    	)
+    	@GetMapping
+    	public ResponseEntity<List<ProdutoResponse>> listarDisponiveis() {
         log.debug("Iniciando consulta de produtos disponíveis para exibição no cardápio");
         
         List<Produto> produtos = produtoService.listarDisponiveis();
@@ -57,8 +73,22 @@ public class ProdutoController {
  * @param id identificador do produto
  * @return dados do produto encontrado
  */
-@GetMapping("/{id}")
-public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
+        @Operation(
+        	    summary = "Buscar produto por ID",
+        	    description = "Consulta os dados de um produto pelo seu identificador."
+        	)
+        	@ApiResponses(value = {
+        	    @ApiResponse(
+        	        responseCode = "200",
+        	        description = "Produto encontrado com sucesso"
+        	    ),
+        	    @ApiResponse(
+        	        responseCode = "404",
+        	        description = "Produto não encontrado"
+        	    )
+        	})
+        	@GetMapping("/{id}")
+        	public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
     log.debug("Consultando produto com ID: {}", id);
 
     Produto produto = produtoService.buscarPorId(id);
@@ -72,6 +102,20 @@ public ResponseEntity<ProdutoResponse> buscarPorId(@PathVariable Long id) {
  * @param id identificador do produto
  * @return HTTP 204 No Content
  */
+        @Operation(
+        	    summary = "Desativar produto",
+        	    description = "Desativa um produto do cardápio sem excluir seu registro do banco de dados."
+        	)
+        	@ApiResponses(value = {
+        	    @ApiResponse(
+        	        responseCode = "204",
+        	        description = "Produto desativado com sucesso"
+        	    ),
+        	    @ApiResponse(
+        	        responseCode = "404",
+        	        description = "Produto não encontrado"
+        	    )
+        	})
 @PatchMapping("/{id}/disponivel")
 public ResponseEntity<Void> desativarProduto(@PathVariable Long id) {
     log.info("Solicitada desativação do produto com ID: {}", id);
@@ -86,8 +130,23 @@ public ResponseEntity<Void> desativarProduto(@PathVariable Long id) {
      * @param request DTO validado contendo os dados de criação do produto
      * @return DTO com o produto criado e cabeçalho Location apontando para o novo recurso (HTTP 201 Created)
      */
-    @PostMapping
-    public ResponseEntity<ProdutoResponse> criar(@Valid @RequestBody ProdutoRequest request) {
+@Operation(
+	    summary = "Cadastrar novo produto",
+	    description = "Cadastra um novo produto no cardápio da lanchonete."
+	)
+	@ApiResponses(value = {
+	    @ApiResponse(
+	        responseCode = "201",
+	        description = "Produto cadastrado com sucesso"
+	    ),
+	    @ApiResponse(
+	        responseCode = "400",
+	        description = "Dados inválidos para cadastro do produto"
+	    )
+	})
+	@PostMapping
+	public ResponseEntity<ProdutoResponse> criar(
+	        @Valid @RequestBody ProdutoRequest request) {
         log.info("Recebida requisição para cadastrar novo produto: '{}' da categoria '{}'", request.nome(), request.categoria());
         
         // Converte DTO de requisição para Entidade de Domínio
