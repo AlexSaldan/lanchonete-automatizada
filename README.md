@@ -64,6 +64,9 @@ práticas de Engenharia de Software.
 | JUnit | Testes automatizados |
 | Mockito | Simulação de dependências nos testes |
 | Git e GitHub | Versionamento e organização do desenvolvimento |
+| Docker | Containerização da aplicação Java |
+| Docker Compose | Orquestração da API e do MySQL |
+| GitHub Actions | Execução automática dos testes na integração contínua (CI) |
 
 ## 🏗️ Arquitetura do projeto
 
@@ -193,8 +196,9 @@ As próximas etapas planejadas incluem:
 - [ ] Integração com gateway de pagamento real.
 - [ ] Mecanismos adicionais de validação e antifraude.
 - [ ] Documentação interativa com OpenAPI/Swagger.
-- [ ] Containerização com Docker.
-- [ ] Integração contínua com CI/CD.
+- [x] Containerização com Docker.
+- [x] Integração contínua (CI) com GitHub Actions.
+- [ ] Entrega contínua (CD) automatizada.
 
 O roadmap representa o planejamento atual e
 pode ser ajustado conforme a evolução do projeto.
@@ -216,6 +220,51 @@ O fluxo completo proposto para o sistema é:
 
 **Importante:** esse fluxo descreve a visão completa
 do produto e ainda não está integralmente implementado.
+
+## 🐳 Executando com Docker Compose
+
+O projeto utiliza Docker Compose para executar a API Spring Boot
+e o banco de dados MySQL em contêineres.
+
+O Dockerfile utiliza Multi-stage Build, permitindo compilar
+a aplicação automaticamente durante a construção da imagem.
+
+### Pré-requisitos
+
+- Docker Engine.
+- Docker Compose.
+
+### 1. Configurar a senha do MySQL
+
+No terminal, execute:
+
+```bash
+read -rsp "Digite a senha do MySQL Docker: " MYSQL_ROOT_PASSWORD; echo; export MYSQL_ROOT_PASSWORD
+```
+
+### 2. Construir e iniciar os contêineres
+
+```bash
+docker compose up -d --build
+```
+
+### 3. Verificar os contêineres
+
+```bash
+docker compose ps
+```
+
+A API estará disponível em:
+
+http://localhost:8080
+
+### 4. Encerrar os contêineres
+
+```bash
+docker compose down
+```
+
+O volume do MySQL será preservado.
 
 ## 🚀 Como executar o projeto localmente
 
@@ -279,7 +328,7 @@ São utilizados JUnit, Mockito, Spring Boot Test e H2.
 Os testes padrão utilizam o banco H2 em memória,
 permitindo sua execução sem um servidor MySQL local.
 
-Na última execução validada, 45 testes passaram
+Na última execução validada, 47 testes passaram
 com sucesso.
 
 Para executar:
@@ -341,6 +390,8 @@ Algumas entregas realizadas:
 - [PR #4 — API de comandas](https://github.com/AlexSaldan/lanchonete-automatizada/pull/4)
 - [PR #5 — Evolução do módulo de produtos](https://github.com/AlexSaldan/lanchonete-automatizada/pull/5)
 - [PR #6 — Pagamentos de subcomandas](https://github.com/AlexSaldan/lanchonete-automatizada/pull/6)
+- [PR #10 — Integração contínua com GitHub Actions](https://github.com/AlexSaldan/lanchonete-automatizada/pull/10)
+- [PR #11 — Docker e Docker Compose](https://github.com/AlexSaldan/lanchonete-automatizada/pull/11)
 
 Os Pull Requests registram a evolução das funcionalidades,
 as alterações realizadas e o processo de revisão do código.
