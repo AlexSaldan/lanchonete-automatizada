@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/pagamentos")
+@RequestMapping("/pagamentos/subcomandas/{subcomandaId}")
 public class PagamentoController {
 
     private static final Logger log = LoggerFactory.getLogger(PagamentoController.class);
@@ -21,7 +21,7 @@ public class PagamentoController {
         this.pagamentoService = pagamentoService;
     }
 
-    @GetMapping("/subcomandas/{subcomandaId}")
+    @GetMapping
     public ResponseEntity<PagamentoResponse> consultarPagamento(
             @PathVariable Long subcomandaId) {
 
@@ -30,7 +30,7 @@ public class PagamentoController {
         return ResponseEntity.ok(PagamentoResponse.fromEntity(subcomanda));
     }
 
-    @PatchMapping("/subcomandas/{subcomandaId}/iniciar")
+    @PatchMapping("/iniciar")
     public ResponseEntity<PagamentoResponse> iniciarPagamento(
             @PathVariable Long subcomandaId) {
 
@@ -43,7 +43,7 @@ public class PagamentoController {
         return ResponseEntity.ok(PagamentoResponse.fromEntity(subcomanda));
     }
 
-    @PatchMapping("/subcomandas/{subcomandaId}/confirmar")
+    @PatchMapping("/confirmar")
     public ResponseEntity<PagamentoResponse> confirmarPagamento(
             @PathVariable Long subcomandaId) {
 
