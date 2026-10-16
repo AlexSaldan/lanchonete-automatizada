@@ -2,120 +2,140 @@ package br.com.alexandrosaldan.lanchonete_automatizada.interfaces.controller;
 
 import br.com.alexandrosaldan.lanchonete_automatizada.application.service.ComandaService;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.net.URI;
 
 /**
  * Controller REST responsável pelo gerenciamento de Comandas Compartilhadas.
  *
- * Fluxo de Negócio:
- * 1. Cliente escaneia QR Code → abreSessao()
- * 2. Novos clientes se juntam → adicionarCliente()
- * 3. Clientes fazem pedidos → lancarItem()
- * 4. Visualização do extrato → buscarExtratoMesa()
+ * Fluxo de Negócio: 1. Cliente escaneia QR Code → abreSessao() 2. Novos
+ * clientes se juntam → adicionarCliente() 3. Clientes fazem pedidos →
+ * lancarItem() 4. Visualização do extrato → buscarExtratoMesa()
  *
- * Arquitetura:
- * - Desacoplamento total via DTOs (Request/Response)
- * - Validação de entrada com Bean Validation (@Valid)
- * - Logs operacionais com SLF4J para auditoria
+ * Arquitetura: - Desacoplamento total via DTOs (Request/Response) - Validação
+ * de entrada com Bean Validation (@Valid) - Logs operacionais com SLF4J para
+ * auditoria
  */
+@Tag(name = "Comandas", description = "Gerenciamento de sessões, subcomandas, pedidos e extratos")
 @RestController
 @RequestMapping("/comandas")
 public class ComandaController {
 
-    private static final Logger log = LoggerFactory.getLogger(ComandaController.class);
+	private static final Logger log = LoggerFactory.getLogger(ComandaController.class);
 
-    private final ComandaService comandaService;
+	private final ComandaService comandaService;
 
-    public ComandaController(ComandaService comandaService) {
-        this.comandaService = comandaService;
-    }
+	public ComandaController(ComandaService comandaService) {
+		this.comandaService = comandaService;
+	}
 
-    /**
-     * Abre uma nova sessão na mesa (primeiro cliente).
-     * Valida o token do QR Code para garantir que o cliente está fisicamente na mesa.
-     *
-     * @param request DTO com número da mesa, token QR Code e dados do primeiro cliente
-     * @return Extrato completo da mesa com a sessão aberta (HTTP 201 Created)
-     */
-    @PostMapping("/sessao/abrir")
-    public ResponseEntity<ExtratoMesaResponse> abrirSessao(@Valid @RequestBody AberturaSessaoRequest request) {
-        log.info("Recebida requisição para abrir sessão na mesa {} pelo cliente '{}'",
-                request.numeroMesa(), request.nomeCliente());
+	/**
+	 * Abre uma nova sessão na mesa (primeiro cliente). Valida o token do QR Code
+	 * para garantir que o cliente está fisicamente na mesa.
+	 *
+	 * @param request DTO com número da mesa, token QR Code e dados do primeiro
+	 *                cliente
+	 * @return Extrato completo da mesa com a sessão aberta (HTTP 201 Created)
+	 */
+	@Operation(summary = "Abrir sessão de comanda", description = "Abre uma sessão em uma mesa disponível, valida o QR Code e cria a primeira subcomanda.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "201", description = "Sessão aberta com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Dados inválidos ou token QR Code incorreto", content = @Content(schema = @Schema(implementation = ErroResponse.class))),
+			@ApiResponse(responseCode = "404", description = "Mesa não encontrada", content = @Content(schema = @Schema(implementation = ErroResponse.class))),
+			@ApiResponse(responseCode = "409", description = "Mesa já ocupada", content = @Content(schema = @Schema(implementation = ErroResponse.class))) })
+	@PostMapping("/sessao/abrir")
+	public ResponseEntity<ExtratoMesaResponse> abrirSessao(@Valid @RequestBody AberturaSessaoRequest request) {
+		log.info("Recebida requisição para abrir sessão na mesa {} pelo cliente '{}'", request.numeroMesa(),
+				request.nomeCliente());
 
-        ExtratoMesaResponse response = comandaService.abrirSessao(request);
+		ExtratoMesaResponse response = comandaService.abrirSessao(request);
 
-        log.info("Sessão aberta com sucesso. ID da sessão: {}", response.sessaoId());
+		log.info("Sessão aberta com sucesso. ID da sessão: {}", response.sessaoId());
 
-        URI location = URI.create("/comandas/sessao/" + response.sessaoId());
-        return ResponseEntity.created(location).body(response);
-    }
+		URI location = URI.create("/comandas/sessao/" + response.sessaoId());
+		return ResponseEntity.created(location).body(response);
+	}
 
-    /**
-     * Adiciona um novo cliente (subcomanda) a uma sessão existente.
-     * Permite o split de contas (múltiplos clientes pagando individualmente na mesma mesa).
-     *
-     * @param request DTO com ID da sessão e dados do novo cliente
-     * @return Dados da subcomanda criada (HTTP 201 Created)
-     */
-    @PostMapping("/subcomanda/adicionar")
-    public ResponseEntity<ExtratoSubcomandaResponse> adicionarCliente(@Valid @RequestBody AdicionarClienteRequest request) {
-        log.info("Recebida requisição para adicionar cliente '{}' à sessão {}",
-                request.nomeCliente(), request.sessaoId());
+	/**
+	 * Adiciona um novo cliente (subcomanda) a uma sessão existente. Permite o split
+	 * de contas (múltiplos clientes pagando individualmente na mesma mesa).
+	 *
+	 * @param request DTO com ID da sessão e dados do novo cliente
+	 * @return Dados da subcomanda criada (HTTP 201 Created)
+	 */
+	@Operation(summary = "Adicionar cliente à sessão", description = "Adiciona um novo cliente a uma sessão aberta, criando uma subcomanda individual para permitir a divisão da conta.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "201", description = "Cliente adicionado à sessão com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Dados da requisição inválidos", content = @Content(schema = @Schema(implementation = ErroResponse.class))),
+			@ApiResponse(responseCode = "404", description = "Sessão não encontrada", content = @Content(schema = @Schema(implementation = ErroResponse.class))),
+			@ApiResponse(responseCode = "409", description = "Sessão encerrada ou em fechamento", content = @Content(schema = @Schema(implementation = ErroResponse.class))) })
+	@PostMapping("/subcomanda/adicionar")
+	public ResponseEntity<ExtratoSubcomandaResponse> adicionarCliente(
+			@Valid @RequestBody AdicionarClienteRequest request) {
+		log.info("Recebida requisição para adicionar cliente '{}' à sessão {}", request.nomeCliente(),
+				request.sessaoId());
 
-        ExtratoSubcomandaResponse response = comandaService.adicionarCliente(request);
+		ExtratoSubcomandaResponse response = comandaService.adicionarCliente(request);
 
-        log.info("Cliente adicionado com sucesso. ID da subcomanda: {}", response.subcomandaId());
+		log.info("Cliente adicionado com sucesso. ID da subcomanda: {}", response.subcomandaId());
 
-        URI location = URI.create("/comandas/subcomanda/" + response.subcomandaId());
-        return ResponseEntity.created(location).body(response);
-    }
+		URI location = URI.create("/comandas/subcomanda/" + response.subcomandaId());
+		return ResponseEntity.created(location).body(response);
+	}
 
-    /**
-     * Lança um item de produto na subcomanda do cliente.
-     * O preço é capturado no momento do pedido (snapshot) para garantir integridade histórica.
-     *
-     * @param request DTO com IDs da subcomanda e produto, quantidade e observação
-     * @return Dados do item lançado (HTTP 201 Created)
-     */
-    @PostMapping("/item/lancar")
-    public ResponseEntity<ItemPedidoResponse> lancarItem(@Valid @RequestBody ItemPedidoRequest request) {
-        log.info("Recebida requisição para lançar produto ID {} na subcomanda ID {} (qtd: {})",
-                request.produtoId(), request.subcomandaId(), request.quantidade());
+	/**
+	 * Lança um item de produto na subcomanda do cliente. O preço é capturado no
+	 * momento do pedido (snapshot) para garantir integridade histórica.
+	 *
+	 * @param request DTO com IDs da subcomanda e produto, quantidade e observação
+	 * @return Dados do item lançado (HTTP 201 Created)
+	 */
+	@Operation(summary = "Lançar item na subcomanda", description = "Adiciona um produto à subcomanda do cliente, verificando se a sessão está aberta, se o pagamento está pendente e se o produto está disponível.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "201", description = "Item lançado na subcomanda com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Dados da requisição inválidos", content = @Content(schema = @Schema(implementation = ErroResponse.class))),
+			@ApiResponse(responseCode = "404", description = "Subcomanda ou produto não encontrado", content = @Content(schema = @Schema(implementation = ErroResponse.class))),
+			@ApiResponse(responseCode = "409", description = "Sessão não aberta, pagamento não pendente ou produto indisponível", content = @Content(schema = @Schema(implementation = ErroResponse.class))) })
+	@PostMapping("/item/lancar")
+	public ResponseEntity<ItemPedidoResponse> lancarItem(@Valid @RequestBody ItemPedidoRequest request) {
+		log.info("Recebida requisição para lançar produto ID {} na subcomanda ID {} (qtd: {})", request.produtoId(),
+				request.subcomandaId(), request.quantidade());
 
-        ItemPedidoResponse response = comandaService.lancarItem(request);
+		ItemPedidoResponse response = comandaService.lancarItem(request);
 
-        log.info("Item lançado com sucesso. ID do item: {}, Subtotal: R$ {}",
-                response.id(), response.subtotal());
+		log.info("Item lançado com sucesso. ID do item: {}, Subtotal: R$ {}", response.id(), response.subtotal());
 
-        URI location = URI.create("/comandas/item/" + response.id());
-        return ResponseEntity.created(location).body(response);
-    }
+		URI location = URI.create("/comandas/item/" + response.id());
+		return ResponseEntity.created(location).body(response);
+	}
 
-    /**
-     * Busca o extrato completo da mesa (visão geral + detalhamento por subcomanda).
-     * Permite que cada cliente visualize sua conta individual e o total da mesa.
-     *
-     * @param sessaoId ID da sessão/comanda geral
-     * @return Extrato completo da mesa (HTTP 200 OK)
-     */
-    @GetMapping("/sessao/{sessaoId}/extrato")
-    public ResponseEntity<ExtratoMesaResponse> buscarExtratoMesa(@PathVariable Long sessaoId) {
-        log.debug("Consultando extrato da sessão ID {}", sessaoId);
+	/**
+	 * Busca o extrato completo da mesa (visão geral + detalhamento por subcomanda).
+	 * Permite que cada cliente visualize sua conta individual e o total da mesa.
+	 *
+	 * @param sessaoId ID da sessão/comanda geral
+	 * @return Extrato completo da mesa (HTTP 200 OK)
+	 */
+	@Operation(summary = "Consultar extrato da mesa", description = "Consulta o extrato completo de uma sessão, incluindo as subcomandas, os itens consumidos e o valor total da mesa.")
+	@ApiResponses(value = { @ApiResponse(responseCode = "200", description = "Extrato da mesa consultado com sucesso"),
+			@ApiResponse(responseCode = "404", description = "Sessão não encontrada", content = @Content(schema = @Schema(implementation = ErroResponse.class))) })
+	@GetMapping("/sessao/{sessaoId}/extrato")
+	public ResponseEntity<ExtratoMesaResponse> buscarExtratoMesa(@PathVariable Long sessaoId) {
+		log.debug("Consultando extrato da sessão ID {}", sessaoId);
 
-        ExtratoMesaResponse response = comandaService.buscarExtratoMesa(sessaoId);
+		ExtratoMesaResponse response = comandaService.buscarExtratoMesa(sessaoId);
 
-        log.info("Extrato retornado com sucesso. Mesa: {}, Total: R$ {}, Subcomandas: {}",
-                response.numeroMesa(), response.valorTotalMesa(), response.subcomandas().size());
+		log.info("Extrato retornado com sucesso. Mesa: {}, Total: R$ {}, Subcomandas: {}", response.numeroMesa(),
+				response.valorTotalMesa(), response.subcomandas().size());
 
-        return ResponseEntity.ok(response);
-    }
+		return ResponseEntity.ok(response);
+	}
 }
-
-
-
