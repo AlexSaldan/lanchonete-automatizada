@@ -137,6 +137,36 @@ class PagamentoControllerWebMvcTest {
                 ));
     }
 
+    @Test
+    @DisplayName("Deve retornar HTTP 404 ao iniciar pagamento de subcomanda inexistente")
+    void deveRetornar404AoIniciarPagamentoDeSubcomandaInexistente() throws Exception {
+        when(pagamentoService.iniciarPagamento(999L))
+                .thenThrow(new SubcomandaNaoEncontradaException(
+                        "Subcomanda não encontrada: 999"
+                ));
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/999/iniciar"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Subcomanda Não Encontrada"))
+                .andExpect(jsonPath("$.message").value("Subcomanda não encontrada: 999"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar HTTP 404 ao confirmar pagamento de subcomanda inexistente")
+    void deveRetornar404AoConfirmarPagamentoDeSubcomandaInexistente() throws Exception {
+        when(pagamentoService.confirmarPagamento(999L))
+                .thenThrow(new SubcomandaNaoEncontradaException(
+                        "Subcomanda não encontrada: 999"
+                ));
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/999/confirmar"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Subcomanda Não Encontrada"))
+                .andExpect(jsonPath("$.message").value("Subcomanda não encontrada: 999"));
+    }
+
     private Subcomanda criarSubcomanda(StatusPagamento status) {
         Subcomanda subcomanda = new Subcomanda("João", null);
         subcomanda.setId(1L);
