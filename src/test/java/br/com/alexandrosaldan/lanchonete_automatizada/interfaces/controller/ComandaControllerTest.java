@@ -6,6 +6,7 @@ import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusPreparo
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusSessao;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.*;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.exception.GlobalExceptionHandler;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.exception.SessaoNaoEncontradaException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -200,6 +201,75 @@ class ComandaControllerTest {
                 .andExpect(jsonPath("$.subcomandaId").value(2))
                 .andExpect(jsonPath("$.nomeCliente").value("Maria"))
                 .andExpect(jsonPath("$.statusPagamento").value("PENDENTE"));
+    }
+    @Test
+    @DisplayName("Deve retornar 404 ao consultar extrato de sessão inexistente")
+    void deveRetornar404QuandoSessaoNaoExistir() throws Exception {
+
+        when(comandaService.buscarExtratoMesa(99L))
+                .thenThrow(new SessaoNaoEncontradaException(
+                        "Sessão 99 não encontrada."));
+
+        mockMvc.perform(get("/comandas/sessao/99/extrato"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Sessão Não Encontrada"))
+                .andExpect(jsonPath("$.message")
+                        .value("Sessão 99 não encontrada."));
+    }
+    @Test
+    @DisplayName("Deve retornar 409 ao abrir sessão em mesa ocupada")
+    void deveRetornar409QuandoMesaEstiverOcupada() throws Exception {
+
+        when(comandaService.abrirSessao(any(AberturaSessaoRequest.class)))
+                .thenThrow(new IllegalStateException(
+                        "A mesa 1 já está ocupada."));
+
+        String payload = """
+                {
+                  "numeroMesa": 1,
+                  "tokenQrCode": "abc-123-token",
+                  "nomeCliente": "João",
+                  "cpfCliente": "123.456.789-00"
+                }
+                """;
+
+        mockMvc.perform(post("/comandas/sessao/abrir")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error")
+                        .value("Conflito de Regra de Negócio"))
+                .andExpect(jsonPath("$.message")
+                        .value("A mesa 1 já está ocupada."));
+    }
+    @Test
+    @DisplayName("Deve retornar 409 ao lançar item em sessão encerrada")
+    void deveRetornar409AoLancarItemEmSessaoEncerrada() throws Exception {
+
+        when(comandaService.lancarItem(any(ItemPedidoRequest.class)))
+                .thenThrow(new IllegalStateException(
+                        "Não é possível lançar itens em uma sessão encerrada."));
+
+        String payload = """
+                {
+                  "subcomandaId": 1,
+                  "produtoId": 5,
+                  "quantidade": 2,
+                  "observacao": "Sem cebola"
+                }
+                """;
+
+        mockMvc.perform(post("/comandas/item/lancar")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error")
+                        .value("Conflito de Regra de Negócio"))
+                .andExpect(jsonPath("$.message")
+                        .value("Não é possível lançar itens em uma sessão encerrada."));
     }
 }
 
