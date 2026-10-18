@@ -5,6 +5,7 @@
 ![MySQL](https://img.shields.io/badge/MySQL-Database-blue)
 ![Maven](https://img.shields.io/badge/Maven-Build-red)
 ![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-yellow)
+[![CI - Lanchonete Automatizada](https://github.com/AlexSaldan/lanchonete-automatizada/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexSaldan/lanchonete-automatizada/actions/workflows/ci.yml)
 
 ## 📖 Sobre o projeto
 
