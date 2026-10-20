@@ -85,6 +85,21 @@ class PagamentoServiceTest {
 
         verify(subcomandaRepository, never()).save(any());
     }
+    @Test
+    void naoDeveIniciarPagamentoComValorNegativo() {
+
+        subcomanda.setValorTotal(new BigDecimal("-25.00"));
+
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
+                .thenReturn(Optional.of(subcomanda));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> pagamentoService.iniciarPagamento(1L)
+        );
+
+        verify(subcomandaRepository, never()).save(any());
+    }
 
     @Test
     void deveConfirmarPagamentoEmProcessamento() {
@@ -127,6 +142,46 @@ class PagamentoServiceTest {
         assertThrows(
                 SubcomandaNaoEncontradaException.class,
                 () -> pagamentoService.consultarSubcomanda(99L)
+        );
+
+        verify(subcomandaRepository, never()).save(any());
+    }
+    @Test
+    void naoDeveIniciarPagamentoComValorNulo() {
+
+        subcomanda.setValorTotal(null);
+
+        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
+                .thenReturn(Optional.of(subcomanda));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> pagamentoService.iniciarPagamento(1L)
+        );
+
+        verify(subcomandaRepository, never()).save(any());
+    }
+    @Test
+    void naoDeveIniciarPagamentoQuandoSubcomandaNaoExiste() {
+
+        when(subcomandaRepository.buscarPorIdComBloqueio(99L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                SubcomandaNaoEncontradaException.class,
+                () -> pagamentoService.iniciarPagamento(99L)
+        );
+
+        verify(subcomandaRepository, never()).save(any());
+    }
+    @Test
+    void naoDeveConfirmarPagamentoQuandoSubcomandaNaoExiste() {
+        when(subcomandaRepository.findById(99L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                SubcomandaNaoEncontradaException.class,
+                () -> pagamentoService.confirmarPagamento(99L)
         );
 
         verify(subcomandaRepository, never()).save(any());

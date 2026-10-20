@@ -166,7 +166,23 @@ class PagamentoControllerWebMvcTest {
                 .andExpect(jsonPath("$.error").value("Subcomanda Não Encontrada"))
                 .andExpect(jsonPath("$.message").value("Subcomanda não encontrada: 999"));
     }
+    @Test
+    @DisplayName("Deve retornar HTTP 409 ao iniciar pagamento sem valor")
+    void deveRetornar409AoIniciarPagamentoSemValor() throws Exception {
 
+        when(pagamentoService.iniciarPagamento(1L))
+                .thenThrow(new IllegalStateException(
+                        "Não é possível pagar uma subcomanda sem valor."
+                ));
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/1/iniciar"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error")
+                        .value("Conflito de Regra de Negócio"))
+                .andExpect(jsonPath("$.message")
+                        .value("Não é possível pagar uma subcomanda sem valor."));
+    }
     private Subcomanda criarSubcomanda(StatusPagamento status) {
         Subcomanda subcomanda = new Subcomanda("João", null);
         subcomanda.setId(1L);
