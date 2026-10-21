@@ -3,6 +3,14 @@ package br.com.alexandrosaldan.lanchonete_automatizada.application.service;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.ItemPedido;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusPreparo;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.ItemPedidoRepository;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.Produto;
+import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.FilaCozinhaResponse;
+import java.util.List;
+
+import java.util.List;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -173,5 +181,77 @@ class CozinhaServiceTest {
         );
 
         verify(itemPedidoRepository, never()).save(any());
+    }
+    @Test
+    void deveListarFilaDaCozinha() {
+
+        ItemPedido primeiroPedido = new ItemPedido();
+        primeiroPedido.setStatusPreparo(StatusPreparo.RECEBIDO);
+
+        ItemPedido segundoPedido = new ItemPedido();
+        segundoPedido.setStatusPreparo(StatusPreparo.EM_PREPARO);
+
+        List<StatusPreparo> statusFila = List.of(
+                StatusPreparo.RECEBIDO,
+                StatusPreparo.EM_PREPARO
+        );
+
+        List<ItemPedido> pedidos = List.of(
+                primeiroPedido,
+                segundoPedido
+        );
+
+        when(itemPedidoRepository
+                .findByStatusPreparoInOrderByDataHoraPedidoAsc(statusFila))
+                .thenReturn(pedidos);
+
+        List<ItemPedido> resultado = cozinhaService.listarFila();
+
+        assertEquals(2, resultado.size());
+        assertEquals(StatusPreparo.RECEBIDO,
+                resultado.get(0).getStatusPreparo());
+        assertEquals(StatusPreparo.EM_PREPARO,
+                resultado.get(1).getStatusPreparo());
+
+        verify(itemPedidoRepository)
+                .findByStatusPreparoInOrderByDataHoraPedidoAsc(statusFila);
+    }
+    @Test
+    void deveConverterPedidosParaFilaCozinhaResponse() {
+
+        Produto produto = new Produto();
+        produto.setNome("Hambúrguer");
+
+        ItemPedido item = new ItemPedido();
+        item.setId(1L);
+        item.setProduto(produto);
+        item.setQuantidade(2);
+        item.setObservacao("Sem cebola");
+        item.setStatusPreparo(StatusPreparo.RECEBIDO);
+
+        List<StatusPreparo> statusFila = List.of(
+                StatusPreparo.RECEBIDO,
+                StatusPreparo.EM_PREPARO
+        );
+
+        when(itemPedidoRepository
+                .findByStatusPreparoInOrderByDataHoraPedidoAsc(statusFila))
+                .thenReturn(List.of(item));
+
+        List<FilaCozinhaResponse> resultado = cozinhaService.consultarFila();
+
+        assertEquals(1, resultado.size());
+
+        FilaCozinhaResponse pedido = resultado.get(0);
+
+        assertEquals(1L, pedido.itemId());
+        assertEquals("Hambúrguer", pedido.nomeProduto());
+        assertEquals(2, pedido.quantidade());
+        assertEquals("Sem cebola", pedido.observacao());
+        assertEquals(StatusPreparo.RECEBIDO, pedido.statusPreparo());
+        assertEquals(item.getDataHoraPedido(), pedido.dataHoraPedido());
+
+        verify(itemPedidoRepository)
+                .findByStatusPreparoInOrderByDataHoraPedidoAsc(statusFila);
     }
 }

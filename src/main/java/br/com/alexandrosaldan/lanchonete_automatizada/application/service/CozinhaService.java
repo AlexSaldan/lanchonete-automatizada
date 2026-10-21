@@ -3,6 +3,10 @@ package br.com.alexandrosaldan.lanchonete_automatizada.application.service;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.ItemPedido;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.ItemPedidoRepository;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusPreparo;
+import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.FilaCozinhaResponse;
+
+import java.util.List;
+import java.util.Arrays;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,5 +73,31 @@ public class CozinhaService {
         item.setStatusPreparo(StatusPreparo.ENTREGUE);
 
         itemPedidoRepository.save(item);
+    }
+    @Transactional(readOnly = true)
+    public List<ItemPedido> listarFila() {
+
+        List<StatusPreparo> statusFila = Arrays.asList(
+                StatusPreparo.RECEBIDO,
+                StatusPreparo.EM_PREPARO
+        );
+
+        return itemPedidoRepository
+                .findByStatusPreparoInOrderByDataHoraPedidoAsc(statusFila);
+    }
+    @Transactional(readOnly = true)
+    public List<FilaCozinhaResponse> consultarFila() {
+
+        return listarFila()
+                .stream()
+                .map(item -> new FilaCozinhaResponse(
+                        item.getId(),
+                        item.getProduto().getNome(),
+                        item.getQuantidade(),
+                        item.getObservacao(),
+                        item.getStatusPreparo(),
+                        item.getDataHoraPedido()
+                ))
+                .toList();
     }
 }
