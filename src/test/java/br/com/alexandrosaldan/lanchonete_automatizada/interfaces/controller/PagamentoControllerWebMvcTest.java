@@ -137,6 +137,52 @@ class PagamentoControllerWebMvcTest {
                 ));
     }
 
+    @Test
+    @DisplayName("Deve retornar HTTP 404 ao iniciar pagamento de subcomanda inexistente")
+    void deveRetornar404AoIniciarPagamentoDeSubcomandaInexistente() throws Exception {
+        when(pagamentoService.iniciarPagamento(999L))
+                .thenThrow(new SubcomandaNaoEncontradaException(
+                        "Subcomanda não encontrada: 999"
+                ));
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/999/iniciar"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Subcomanda Não Encontrada"))
+                .andExpect(jsonPath("$.message").value("Subcomanda não encontrada: 999"));
+    }
+
+    @Test
+    @DisplayName("Deve retornar HTTP 404 ao confirmar pagamento de subcomanda inexistente")
+    void deveRetornar404AoConfirmarPagamentoDeSubcomandaInexistente() throws Exception {
+        when(pagamentoService.confirmarPagamento(999L))
+                .thenThrow(new SubcomandaNaoEncontradaException(
+                        "Subcomanda não encontrada: 999"
+                ));
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/999/confirmar"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Subcomanda Não Encontrada"))
+                .andExpect(jsonPath("$.message").value("Subcomanda não encontrada: 999"));
+    }
+    @Test
+    @DisplayName("Deve retornar HTTP 409 ao iniciar pagamento sem valor")
+    void deveRetornar409AoIniciarPagamentoSemValor() throws Exception {
+
+        when(pagamentoService.iniciarPagamento(1L))
+                .thenThrow(new IllegalStateException(
+                        "Não é possível pagar uma subcomanda sem valor."
+                ));
+
+        mockMvc.perform(patch("/pagamentos/subcomandas/1/iniciar"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error")
+                        .value("Conflito de Regra de Negócio"))
+                .andExpect(jsonPath("$.message")
+                        .value("Não é possível pagar uma subcomanda sem valor."));
+    }
     private Subcomanda criarSubcomanda(StatusPagamento status) {
         Subcomanda subcomanda = new Subcomanda("João", null);
         subcomanda.setId(1L);
