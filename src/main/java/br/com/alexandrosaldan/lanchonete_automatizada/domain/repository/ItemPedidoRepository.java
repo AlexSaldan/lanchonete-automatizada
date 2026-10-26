@@ -1,10 +1,16 @@
 package br.com.alexandrosaldan.lanchonete_automatizada.domain.repository;
 
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.ItemPedido;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusPreparo;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.util.List;
+import jakarta.persistence.LockModeType;
 
 public interface ItemPedidoRepository extends JpaRepository<ItemPedido, Long> {
 
@@ -18,4 +24,8 @@ public interface ItemPedidoRepository extends JpaRepository<ItemPedido, Long> {
      * permitindo filtrar apenas os status relevantes para o display da cozinha.
      */
     List<ItemPedido> findByStatusPreparoInOrderByDataHoraPedidoAsc(List<StatusPreparo> statusList);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM ItemPedido i WHERE i.id = :id")
+    Optional<ItemPedido> buscarPorIdComBloqueio(@Param("id") Long id);
 }

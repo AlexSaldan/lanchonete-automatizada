@@ -23,7 +23,7 @@ public class CozinhaService {
     @Transactional
     public void iniciarPreparo(Long itemId) {
 
-        ItemPedido item = itemPedidoRepository.findById(itemId)
+        ItemPedido item = itemPedidoRepository.buscarPorIdComBloqueio(itemId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Pedido não encontrado.")
                 );
@@ -41,7 +41,7 @@ public class CozinhaService {
     @Transactional
     public void marcarComoPronto(Long itemId) {
 
-        ItemPedido item = itemPedidoRepository.findById(itemId)
+        ItemPedido item = itemPedidoRepository.buscarPorIdComBloqueio(itemId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Pedido não encontrado.")
                 );
@@ -59,7 +59,7 @@ public class CozinhaService {
     @Transactional
     public void marcarComoEntregue(Long itemId) {
 
-        ItemPedido item = itemPedidoRepository.findById(itemId)
+        ItemPedido item = itemPedidoRepository.buscarPorIdComBloqueio(itemId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Pedido não encontrado.")
                 );

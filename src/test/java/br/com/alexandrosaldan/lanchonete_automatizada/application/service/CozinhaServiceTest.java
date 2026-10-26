@@ -40,7 +40,7 @@ class CozinhaServiceTest {
         item.setId(1L);
         item.setStatusPreparo(StatusPreparo.RECEBIDO);
 
-        when(itemPedidoRepository.findById(1L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(item));
 
         cozinhaService.iniciarPreparo(1L);
@@ -59,7 +59,7 @@ class CozinhaServiceTest {
         item.setId(1L);
         item.setStatusPreparo(StatusPreparo.ENTREGUE);
 
-        when(itemPedidoRepository.findById(1L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(item));
 
         assertThrows(
@@ -77,7 +77,7 @@ class CozinhaServiceTest {
     @Test
     void naoDeveIniciarPreparoQuandoPedidoNaoExiste() {
 
-        when(itemPedidoRepository.findById(99L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(99L))
                 .thenReturn(Optional.empty());
 
         assertThrows(
@@ -94,7 +94,7 @@ class CozinhaServiceTest {
         item.setId(1L);
         item.setStatusPreparo(StatusPreparo.EM_PREPARO);
 
-        when(itemPedidoRepository.findById(1L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(item));
 
         cozinhaService.marcarComoPronto(1L);
@@ -113,7 +113,7 @@ class CozinhaServiceTest {
         item.setId(1L);
         item.setStatusPreparo(StatusPreparo.PRONTO);
 
-        when(itemPedidoRepository.findById(1L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(item));
 
         assertThrows(
@@ -135,7 +135,7 @@ class CozinhaServiceTest {
         item.setId(1L);
         item.setStatusPreparo(StatusPreparo.PRONTO);
 
-        when(itemPedidoRepository.findById(1L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(item));
 
         cozinhaService.marcarComoEntregue(1L);
@@ -154,7 +154,7 @@ class CozinhaServiceTest {
         item.setId(1L);
         item.setStatusPreparo(StatusPreparo.EM_PREPARO);
 
-        when(itemPedidoRepository.findById(1L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(item));
 
         assertThrows(
@@ -172,7 +172,7 @@ class CozinhaServiceTest {
     @Test
     void naoDeveEntregarPedidoInexistente() {
 
-        when(itemPedidoRepository.findById(99L))
+        when(itemPedidoRepository.buscarPorIdComBloqueio(99L))
                 .thenReturn(Optional.empty());
 
         assertThrows(
