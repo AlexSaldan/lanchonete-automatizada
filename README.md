@@ -27,9 +27,13 @@ processamento e confirmar o pagamento de uma subcomanda,
 respeitando as regras de transição entre os estados
 PENDENTE, PROCESSANDO e PAGO.
 
-Entre as evoluções planejadas estão o acompanhamento de pedidos
-em tempo real, a integração com sistemas automatizados de preparo
-e a integração com serviços reais de pagamento.
+O projeto já conta com um módulo de cozinha automatizada,
+responsável pelo acompanhamento dos itens dos pedidos,
+controle dos estados de preparo e entrega,
+além de mecanismos de controle de concorrência para garantir a consistência das operações.
+
+Entre as próximas evoluções planejadas estão o acompanhamento de pedidos em tempo real,
+a integração com equipamentos físicos de preparo e a integração com serviços reais de pagamento.
 
 Este repositório faz parte do meu portfólio profissional e tem
 como objetivo demonstrar conhecimentos em desenvolvimento backend,
@@ -58,8 +62,11 @@ práticas de Engenharia de Software.
 | Spring Boot 4.1.1 | Framework principal |
 | Spring Web MVC | Desenvolvimento da API REST |
 | Spring Data JPA | Persistência de dados |
+| Hibernate | Mapeamento objeto-relacional (ORM) e gerenciamento de entidades |
+| Spring Transaction Management | Gerenciamento de transações com `@Transactional` |
 | Spring Validation | Validação de dados |
 | MySQL | Banco de dados relacional |
+| MySQL InnoDB | Controle de concorrência com bloqueio pessimista (`PESSIMISTIC_WRITE`) |
 | H2 Database | Banco de dados em memória para testes automatizados |
 | Maven | Gerenciamento de dependências e build |
 | JUnit | Testes automatizados |
@@ -68,6 +75,25 @@ práticas de Engenharia de Software.
 | Docker | Containerização da aplicação Java |
 | Docker Compose | Orquestração da API e do MySQL |
 | GitHub Actions | Execução automática dos testes na integração contínua (CI) |
+| Swagger / OpenAPI | Documentação interativa dos endpoints da API REST |
+| Spring Tools for Eclipse (STS) 5.4.0.RELEASE | IDE utilizada no desenvolvimento, depuração e execução dos testes |
+
+### Tecnologias planejadas
+
+As próximas etapas do projeto poderão incorporar novas tecnologias para ampliar a segurança,
+a experiência dos usuários e a automação dos processos.
+
+| Tecnologia | Finalidade planejada |
+|------------|----------------------|
+| Spring WebSocket | Atualização de pedidos em tempo real |
+| Spring Security | Autenticação e autorização |
+| JWT | Autenticação baseada em tokens |
+| Flyway | Versionamento e evolução do esquema do banco de dados |
+| React | Desenvolvimento da interface web |
+| TypeScript | Desenvolvimento de interfaces com tipagem estática |
+| HTML5 e CSS3 | Estrutura e estilização das interfaces |
+| Gateway de pagamento | Integração com serviços reais de pagamento |
+| GitHub Actions (CD) | Automatização do processo de entrega |
 
 ## 🏗️ Arquitetura do projeto
 
@@ -179,9 +205,31 @@ e controlar o consumo individual dos clientes.
 - Enumerações para estados de mesas, sessões e pagamentos.
 - Repositórios para persistência das entidades.
 
+### Cozinha automatizada
+
+O módulo de cozinha permite acompanhar e controlar o preparo
+dos itens lançados nas subcomandas.
+
+Funcionalidades implementadas:
+
+- Consulta da fila de itens da cozinha.
+- Início do preparo de um item.
+- Atualização do item para o estado pronto.
+- Registro da entrega do item.
+- Validação das transições entre os estados de preparo.
+- Controle de concorrência com bloqueio pessimista no MySQL.
+- Testes automatizados das regras de negócio da cozinha.
+
+O módulo utiliza transações com `@Transactional` e bloqueio
+pessimista com `PESSIMISTIC_WRITE` para proteger as alterações
+de estado contra operações concorrentes.
+
+A implementação foi integrada à branch principal (`main`)
+por meio do Pull Request #21.
+
 ## 🗺️ Roadmap
 
-As próximas etapas planejadas incluem:
+O roadmap apresenta as funcionalidades já implementadas e as próximas evoluções planejadas:
 
 - [x] Estrutura inicial do projeto.
 - [x] Modelagem de mesas e produtos.
@@ -190,13 +238,17 @@ As próximas etapas planejadas incluem:
 - [x] Modelagem inicial de sessões e subcomandas.
 - [x] Integração da API de comandas à `main`.
 - [x] Implementação do fluxo de pagamentos de subcomandas.
+- [x] Implementação da fila de itens da cozinha.
+- [x] Controle dos estados de preparo e entrega dos itens.
+- [x] Controle de concorrência na cozinha com bloqueio pessimista.
+- [x] Testes automatizados do módulo de cozinha.
 - [x] Testes automatizados com H2 em memória.
 - [x] Teste de concorrência com MySQL e bloqueio pessimista.
 - [ ] Evolução das migrações SQL.
 - [ ] Atualizações em tempo real com WebSocket.
 - [ ] Integração com gateway de pagamento real.
 - [ ] Mecanismos adicionais de validação e antifraude.
-- [ ] Documentação interativa com OpenAPI/Swagger.
+- [x] Documentação interativa com OpenAPI/Swagger.
 - [x] Containerização com Docker.
 - [x] Integração contínua (CI) com GitHub Actions.
 - [ ] Entrega contínua (CD) automatizada.
@@ -291,7 +343,7 @@ cd lanchonete-automatizada
 Crie um banco de dados MySQL para a aplicação:
 
 ```sql
-CREATE DATABASE lanchonete_db;
+CREATE DATABASE lanchonete_automatizada;
 ```
 
 Configure a conexão no arquivo:
@@ -329,8 +381,14 @@ São utilizados JUnit, Mockito, Spring Boot Test e H2.
 Os testes padrão utilizam o banco H2 em memória,
 permitindo sua execução sem um servidor MySQL local.
 
-Na última execução validada, 47 testes passaram
-com sucesso.
+Na última execução validada pelo GitHub Actions,
+77 testes automatizados passaram com sucesso,
+sem falhas ou erros.
+
+Em execução local pelo Spring Tools Suite (STS),
+80 testes automatizados passaram com sucesso,
+incluindo os testes de integração com MySQL,
+sem falhas ou erros.
 
 Para executar:
 
@@ -346,6 +404,14 @@ O projeto também possui o teste de integração
 Esse teste valida o uso de bloqueio pessimista
 para controlar operações concorrentes em subcomandas.
 
+O projeto também possui o teste de integração
+`ItemPedidoRepositoryIT`, executado com MySQL.
+
+Esse teste verifica o bloqueio pessimista
+(`PESSIMISTIC_WRITE`) durante operações concorrentes
+sobre itens de pedidos, utilizando duas transações
+simultâneas para validar o comportamento do banco de dados.
+
 Requisitos:
 
 - MySQL disponível em `localhost:3306`.
@@ -357,6 +423,12 @@ Para executar somente esse teste:
 
 ```bash
 ./mvnw -Dtest=SubcomandaRepositoryIT test
+```
+
+Para executar somente o teste de concorrência da cozinha:
+
+```bash
+./mvnw -Dtest=ItemPedidoRepositoryIT test
 ```
 
 > **Atenção:** o perfil `mysql-test` utiliza
@@ -393,6 +465,7 @@ Algumas entregas realizadas:
 - [PR #6 — Pagamentos de subcomandas](https://github.com/AlexSaldan/lanchonete-automatizada/pull/6)
 - [PR #10 — Integração contínua com GitHub Actions](https://github.com/AlexSaldan/lanchonete-automatizada/pull/10)
 - [PR #11 — Docker e Docker Compose](https://github.com/AlexSaldan/lanchonete-automatizada/pull/11)
+- [PR #21 — Cozinha automatizada e controle de concorrência](https://github.com/AlexSaldan/lanchonete-automatizada/pull/21)
 
 Os Pull Requests registram a evolução das funcionalidades,
 as alterações realizadas e o processo de revisão do código.
