@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.junit.jupiter.api.Test;
 
 @SpringBootTest
-@ActiveProfiles("mysql-test")
+@ActiveProfiles("test")
 class PedidoCozinhaIntegrationIT {
 	@Autowired
 	private ComandaService comandaService;
