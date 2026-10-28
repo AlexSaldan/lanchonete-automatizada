@@ -87,12 +87,12 @@ a experiência dos usuários e a automação dos processos.
 |------------|----------------------|
 | Spring WebSocket | Atualização de pedidos em tempo real |
 | Spring Security | Autenticação e autorização |
-| JWT | Autenticação baseada em tokens |
+| Tokens de acesso (formato a definir) | Credenciais temporárias para clientes e sessões |
 | Flyway | Versionamento e evolução do esquema do banco de dados |
 | React | Desenvolvimento da interface web |
 | TypeScript | Desenvolvimento de interfaces com tipagem estática |
 | HTML5 e CSS3 | Estrutura e estilização das interfaces |
-| Gateway de pagamento | Integração com serviços reais de pagamento |
+| Provedor de serviços de pagamento (PSP) | Cobranças Pix dinâmicas e confirmação por webhook |
 | GitHub Actions (CD) | Automatização do processo de entrega |
 
 ## 🏗️ Arquitetura do projeto
@@ -247,6 +247,14 @@ O roadmap apresenta as funcionalidades já implementadas e as próximas evoluç�
 - [ ] Evolução das migrações SQL.
 - [ ] Atualizações em tempo real com WebSocket.
 - [ ] Integração com gateway de pagamento real.
+- [ ] Autenticação de funcionários e autorização por perfil com Spring Security.
+- [ ] Autorização individual por subcomanda e testes contra BOLA/IDOR.
+- [ ] Liberação presencial de mesas por funcionário e ativação temporária de clientes.
+- [ ] Controle quantitativo de estoque e disponibilidade dos produtos.
+- [ ] Pagamento misto (dinheiro + Pix) com saldo restante por subcomanda.
+- [ ] Confirmação segura e idempotente de Pix por webhook do PSP.
+- [ ] Painel de funcionários com notificações de pagamentos confirmados.
+- [ ] Registro opcional de feedback dos clientes.
 - [ ] Mecanismos adicionais de validação e antifraude.
 - [x] Documentação interativa com OpenAPI/Swagger.
 - [x] Containerização com Docker.
@@ -258,21 +266,44 @@ pode ser ajustado conforme a evolução do projeto.
 
 ## 🔄 Fluxo de atendimento planejado
 
-O fluxo completo proposto para o sistema é:
+O fluxo abaixo representa a visão de produto e **ainda não está integralmente implementado**:
 
-1. O cliente chega à lanchonete e escolhe uma mesa.
-2. Acessa o sistema por meio do QR Code da mesa.
-3. Uma sessão de atendimento é iniciada.
-4. Outros clientes podem participar da mesma sessão.
-5. Cada cliente utiliza sua própria subcomanda.
-6. Os clientes selecionam produtos do cardápio.
-7. Os pedidos são encaminhados para preparo.
-8. O andamento dos pedidos poderá ser acompanhado.
-9. Cada cliente realiza o pagamento do próprio consumo.
-10. Após o encerramento da sessão, a mesa é liberada.
+1. O funcionário autenticado recebe o cliente e libera a mesa para atendimento.
+2. O cliente escaneia o **QR Code fixo** da mesa, que a identifica, mas não concede autorização para pedidos.
+3. Uma ativação temporária, fornecida por canal presencial controlado, permite ingressar na sessão autorizada.
+4. Cada cliente recebe uma credencial temporária vinculada à sua **própria subcomanda**.
+5. O cliente consulta o cardápio e faz pedidos; o backend verifica permissões, disponibilidade e regras de negócio.
+6. A cozinha acompanha o preparo; o funcionário controla a disponibilidade e, futuramente, as quantidades em estoque.
+7. O cliente consulta sua conta e pode pagar em dinheiro, Pix ou combinar os dois.
+8. O funcionário autenticado registra o valor efetivamente recebido em dinheiro; o backend calcula o saldo restante.
+9. Para o saldo escolhido em Pix, o backend cria uma cobrança dinâmica no PSP; o cliente recebe QR Code Pix ou código copia e cola.
+10. O backend confirma o Pix por integração confiável com o PSP, validando cobrança, valor e status, e processando notificações repetidas com segurança.
+11. O funcionário recebe uma atualização em tempo real sobre o pagamento confirmado, sem depender de comprovantes apresentados pelo cliente.
+12. A mesa só fica apta a ser liberada quando **todas as subcomandas estiverem quitadas**; o funcionário confere o atendimento, pode solicitar feedback e libera a mesa.
 
-**Importante:** esse fluxo descreve a visão completa
-do produto e ainda não está integralmente implementado.
+### 🔐 Decisões de segurança previstas
+
+- O QR Code impresso permanece fixo: fotografá-lo não deve conceder acesso a subcomandas ou permitir abertura não autorizada de sessões.
+- O funcionário autoriza a utilização da mesa; a ativação temporária do cliente precisa de uma comprovação adicional, independente da URL pública.
+- Cada requisição sensível deve validar **quem solicita** e **qual subcomanda pode acessar**, evitando BOLA/IDOR.
+- CPF, nome e identificadores numéricos não são credenciais de autenticação.
+- O acesso dos funcionários terá perfis e permissões; alterações de estoque, recebimentos em dinheiro e liberações de mesa deverão ser auditáveis.
+- Somente o backend, após verificação com o PSP, poderá confirmar um pagamento Pix real.
+- O fluxo financeiro deverá tratar concorrência, idempotência, estornos, troco e divergências antes de operar com dinheiro real.
+- Informações pessoais não deverão aparecer em monitores públicos.
+
+### 💰 Pagamentos parciais e mistos — planejado
+
+Uma subcomanda poderá ter **vários recebimentos**, cada um com forma, valor, estado e origem de confirmação. Exemplo:
+
+| Movimento | Valor | Confirmação |
+|-----------|------:|-------------|
+| Total consumido | R$ 46,00 | Calculado pelo backend |
+| Dinheiro recebido | R$ 20,00 | Registrado por funcionário autorizado |
+| Pix restante | R$ 26,00 | Confirmado pelo PSP |
+| Saldo após ambos confirmados | R$ 0,00 | Subcomanda quitada |
+
+**Saldo = total consumido − soma dos recebimentos confirmados.** Uma cobrança Pix criada, mas ainda não confirmada, não quita a conta. O modelo atual de pagamento por estados é uma etapa anterior a esse controle financeiro detalhado.
 
 ## 🐳 Executando com Docker Compose
 
@@ -435,6 +466,66 @@ Para executar somente o teste de concorrência da cozinha:
 > `ddl-auto: create-drop`. Execute esse teste
 > exclusivamente em um banco destinado a testes.
 
+## 🚧 Desafios Enfrentados & Aprendizados
+
+Esta seção distingue os problemas já tratados no código das melhorias identificadas durante a evolução do produto.
+
+### 🍔 Contas individuais em mesas compartilhadas — implementado
+
+**Desafio:** permitir que vários clientes consumam na mesma mesa sem misturar seus pedidos e valores.
+
+**Solução:** modelagem de `SessaoMesa` e `Subcomanda`, associando cada consumo à subcomanda individual.
+
+**Aprendizado:** modelagem de domínio, relacionamentos JPA, separação de responsabilidades e regras de negócio.
+
+### 💳 Integridade do estado de pagamento — implementado no fluxo simulado
+
+**Desafio:** impedir novos lançamentos quando a subcomanda já não está pendente e preservar a consistência do processamento.
+
+**Solução:** validação do estado da sessão e do pagamento no serviço, com transações e controle de concorrência. A confirmação atual é **administrativa e simulada**, não uma confirmação bancária real.
+
+**Aprendizado:** máquinas de estados, transações e integridade financeira.
+
+### 🔄 Concorrência nos pedidos e na cozinha — implementado
+
+**Desafio:** evitar inconsistências quando operações simultâneas modificam itens ou subcomandas.
+
+**Solução:** uso de `@Transactional`, consultas com bloqueio pessimista e testes de integração com MySQL.
+
+**Aprendizado:** concorrência, isolamento transacional e verificação do comportamento no banco real.
+
+### 🔐 Autorização por subcomanda — risco identificado; solução planejada
+
+**Desafio:** um cliente pode tentar informar o identificador da subcomanda de outro cliente para lançar pedidos ou consultar dados.
+
+**Solução planejada:** autenticar ou credenciar o solicitante, autorizar cada operação no recurso correto e criar testes de regressão para acessos indevidos (BOLA/IDOR).
+
+**Aprendizado:** identificação não equivale a autorização; `@Valid` e identificadores numéricos não substituem controles de acesso.
+
+### 📷 Reutilização de fotografias de QR Codes — solução planejada
+
+**Desafio:** alguém pode fotografar o QR Code fixo de uma mesa e tentar acessá-la remotamente.
+
+**Solução planejada:** manter o adesivo fixo apenas como identificador, exigir liberação presencial pelo funcionário e ativação temporária independente do QR Code; revogar credenciais ao encerrar o atendimento.
+
+**Aprendizado:** separar descoberta de recursos, prova de presença e autorização de operações.
+
+### 💰 Pagamento misto e confirmação confiável — solução planejada
+
+**Desafio:** registrar parte da conta em dinheiro e o restante em Pix, sem aceitar prints ou notificações falsas como prova de quitação.
+
+**Solução planejada:** registrar recebimentos parciais auditáveis, calcular saldo no backend, gerar Pix pelo PSP e validar confirmações de forma idempotente.
+
+**Aprendizado esperado:** conciliação financeira, webhooks, idempotência e tratamento de falhas externas.
+
+### 🍖 Estoque e experiência do cliente — solução planejada
+
+**Desafio:** impedir pedidos de produtos esgotados e dar ao funcionário controle sobre o atendimento e a satisfação do freguês.
+
+**Solução planejada:** evoluir a disponibilidade atual dos produtos para controle quantitativo de estoque, painel operacional e feedback opcional ao encerrar a mesa.
+
+**Aprendizado esperado:** autorização por perfil, consistência de estoque e desenho de fluxos orientados ao negócio.
+
 ## 🌿 Versionamento
 
 O desenvolvimento é organizado por branches,
@@ -479,3 +570,4 @@ Engenharia de Software e composição de portfólio
 profissional em desenvolvimento backend Java.
 
 GitHub: [AlexSaldan](https://github.com/AlexSaldan)
+
