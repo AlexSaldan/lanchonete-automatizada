@@ -28,7 +28,7 @@ public class DataLoader {
     @Bean
     @Profile({"dev", "default", "test"})
     CommandLineRunner initData(MesaRepository mesaRepository) {
-        return args -> {
+        return _ -> {
             // Verifica se o banco já possui dados para evitar duplicidade em reinicializações
             if (mesaRepository.count() == 0) {
                 log.info("🌱 Banco de dados vazio. Iniciando carga de dados iniciais (Seed)...");

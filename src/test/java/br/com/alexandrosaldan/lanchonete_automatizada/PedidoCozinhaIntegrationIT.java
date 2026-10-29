@@ -19,9 +19,7 @@ import br.com.alexandrosaldan.lanchonete_automatizada.application.service.Comand
 import br.com.alexandrosaldan.lanchonete_automatizada.application.service.CozinhaService;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.MesaRepository;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.SessaoMesaRepository;
-import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.SubcomandaRepository;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.ProdutoRepository;
-import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.ItemPedidoRepository;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.springframework.transaction.annotation.Transactional;
 import org.junit.jupiter.api.Test;
@@ -41,14 +39,9 @@ class PedidoCozinhaIntegrationIT {
 	@Autowired
 	private SessaoMesaRepository sessaoMesaRepository;
 
-	@Autowired
-	private SubcomandaRepository subcomandaRepository;
 
 	@Autowired
 	private ProdutoRepository produtoRepository;
-
-	@Autowired
-	private ItemPedidoRepository itemPedidoRepository;
 
 	@Test
 	@Transactional
@@ -68,24 +61,24 @@ class PedidoCozinhaIntegrationIT {
 
 		sessao.adicionarSubcomanda(subcomanda);
 		sessao = sessaoMesaRepository.save(sessao);
-		
+
 		Long subcomandaId = sessao.getSubcomandas()
 		        .getFirst()
 		        .getId();
-		
+
 		ItemPedidoRequest request = new ItemPedidoRequest(
 		        subcomandaId,
 		        produto.getId(),
 		        2,
 		        "Sem cebola"
 		);
-		
+
 		ItemPedidoResponse response = comandaService.lancarItem(request);
-		
+
 		assertEquals(StatusPreparo.RECEBIDO, response.statusPreparo());
-		
+
 		var fila = cozinhaService.consultarFila();
-		
+
 		assertTrue(
 			    fila.stream().anyMatch(item ->
 			        item.itemId().equals(response.id())
