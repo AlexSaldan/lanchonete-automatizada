@@ -38,7 +38,7 @@ class SubcomandaRepositoryIT {
     void deveAguardarLiberacaoDoBloqueioPessimista() throws Exception {
         TransactionTemplate transacao = new TransactionTemplate(transactionManager);
 
-        Long subcomandaId = transacao.execute(status -> {
+        Long subcomandaId = transacao.execute(_ -> {
             Mesa mesa = mesaRepository.save(new Mesa(1001, 4));
             SessaoMesa sessao = sessaoMesaRepository.save(new SessaoMesa(mesa));
 
@@ -58,7 +58,7 @@ class SubcomandaRepositoryIT {
 
         try {
             Future<?> primeiraTransacao = executor.submit(() ->
-                transacao.executeWithoutResult(status -> {
+                transacao.executeWithoutResult(_ -> {
                     subcomandaRepository.buscarPorIdComBloqueio(subcomandaId)
                             .orElseThrow();
 
@@ -78,7 +78,7 @@ class SubcomandaRepositoryIT {
             assertTrue(primeiroBloqueioAdquirido.await(5, TimeUnit.SECONDS));
 
             Future<?> segundaTransacao = executor.submit(() ->
-                transacao.executeWithoutResult(status -> {
+                transacao.executeWithoutResult(_ -> {
                     segundaTentativaIniciada.countDown();
 
                     subcomandaRepository.buscarPorIdComBloqueio(subcomandaId)
