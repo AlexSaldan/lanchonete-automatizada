@@ -7,7 +7,6 @@ import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.Produto;
 import br.com.alexandrosaldan.lanchonete_automatizada.interfaces.dto.FilaCozinhaResponse;
 import java.util.List;
 
-import java.util.List;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.junit.jupiter.api.Assertions.assertEquals;
