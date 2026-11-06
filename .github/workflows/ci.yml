@@ -13,6 +13,22 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: lanchonete_automatizada_test
+          MYSQL_USER: teste_ci
+          MYSQL_PASSWORD: senha_teste_ci
+          MYSQL_ROOT_PASSWORD: senha_root_ci
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -psenha_root_ci"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
     steps:
       - name: Baixar o codigo
         uses: actions/checkout@v4
@@ -27,5 +43,8 @@ jobs:
       - name: Dar permissao ao Maven Wrapper
         run: chmod +x ./mvnw
 
-      - name: Executar os testes
-        run: ./mvnw clean test
+      - name: Executar testes unitarios e de integracao
+        env:
+          DB_TEST_USER: teste_ci
+          DB_TEST_PASSWORD: senha_teste_ci
+        run: ./mvnw clean verify
