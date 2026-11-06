@@ -4,6 +4,12 @@ import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.Subcomanda;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusPagamento;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.exception.SubcomandaNaoEncontradaException;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.SubcomandaRepository;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.MesaRepository;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.SessaoMesaRepository;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.Mesa;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.entity.SessaoMesa;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusMesa;
+import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusSessao;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,168 +29,439 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PagamentoServiceTest {
 
-    @Mock
-    private SubcomandaRepository subcomandaRepository;
+	@Mock
+	private SubcomandaRepository subcomandaRepository;
 
-    @InjectMocks
-    private PagamentoService pagamentoService;
+	@InjectMocks
+	private PagamentoService pagamentoService;
 
-    private Subcomanda subcomanda;
+	private Subcomanda subcomanda;
 
-    @BeforeEach
-    void configurar() {
-        subcomanda = new Subcomanda("João", null);
-        subcomanda.setId(1L);
-        subcomanda.setValorTotal(new BigDecimal("45.80"));
-        subcomanda.setStatusPagamento(StatusPagamento.PENDENTE);
-    }
+	@BeforeEach
+	void configurar() {
+		subcomanda = new Subcomanda("João", null);
+		subcomanda.setId(1L);
+		subcomanda.setValorTotal(new BigDecimal("45.80"));
+		subcomanda.setStatusPagamento(StatusPagamento.PENDENTE);
+	}
 
-    @Test
-    void deveIniciarPagamentoPendente() {
+	@Test
+	void deveIniciarPagamentoPendente() {
 
-	when(subcomandaRepository.buscarPorIdComBloqueio(1L))
-                .thenReturn(Optional.of(subcomanda));
+		// Preparação da mesa
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
 
-        when(subcomandaRepository.save(any(Subcomanda.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+		// Preparação da sessão
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
 
-        Subcomanda resultado = pagamentoService.iniciarPagamento(1L);
+		// Vincula João à sessão
+		sessao.adicionarSubcomanda(subcomanda);
 
-        assertEquals(StatusPagamento.PROCESSANDO, resultado.getStatusPagamento());
+		// Consulta dos relacionamentos
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
 
-        verify(subcomandaRepository).save(subcomanda);
-    }
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
 
-    @Test
-    void naoDeveIniciarPagamentoJaPago() {
+		// Bloqueios pessimistas
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
 
-        subcomanda.setStatusPagamento(StatusPagamento.PAGO);
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
 
-        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
-                .thenReturn(Optional.of(subcomanda));
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> pagamentoService.iniciarPagamento(1L)
-        );
+		// Persistência simulada
+		when(subcomandaRepository.save(any(Subcomanda.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        verify(subcomandaRepository, never()).save(any());
-    }
+		// Executa
+		Subcomanda resultado = pagamentoService.iniciarPagamento(1L);
 
-    @Test
-    void naoDeveIniciarPagamentoComValorZero() {
+		// Verifica o pagamento
+		assertEquals(StatusPagamento.PROCESSANDO, resultado.getStatusPagamento());
 
-        subcomanda.setValorTotal(BigDecimal.ZERO);
+		// Verifica a persistência
+		verify(subcomandaRepository).save(subcomanda);
 
-        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
-                .thenReturn(Optional.of(subcomanda));
+		// Verifica a ordem dos bloqueios
+		var ordem = inOrder(mesaRepository, sessaoMesaRepository, subcomandaRepository);
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> pagamentoService.iniciarPagamento(1L)
-        );
+		ordem.verify(mesaRepository).findByIdComBloqueio(10L);
+		ordem.verify(sessaoMesaRepository).buscarPorIdComBloqueio(20L);
+		ordem.verify(subcomandaRepository).buscarPorIdComBloqueio(1L);
+	}
 
-        verify(subcomandaRepository, never()).save(any());
-    }
-    @Test
-    void naoDeveIniciarPagamentoComValorNegativo() {
+	@Test
+	void naoDeveIniciarPagamentoJaPago() {
 
-        subcomanda.setValorTotal(new BigDecimal("-25.00"));
+		// Mesa ocupada
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
 
-        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
-                .thenReturn(Optional.of(subcomanda));
+		// Sessão aberta
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> pagamentoService.iniciarPagamento(1L)
-        );
+		// João já pagou
+		subcomanda.setStatusPagamento(StatusPagamento.PAGO);
+		sessao.adicionarSubcomanda(subcomanda);
 
-        verify(subcomandaRepository, never()).save(any());
-    }
+		// Consultas dos relacionamentos
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
 
-    @Test
-    void deveConfirmarPagamentoEmProcessamento() {
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
 
-        subcomanda.setStatusPagamento(StatusPagamento.PROCESSANDO);
+		// Bloqueios
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
 
-        when(subcomandaRepository.findById(1L))
-                .thenReturn(Optional.of(subcomanda));
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
 
-        when(subcomandaRepository.save(any(Subcomanda.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
 
-        Subcomanda resultado = pagamentoService.confirmarPagamento(1L);
+		// Deve impedir um novo pagamento
+		assertThrows(IllegalStateException.class, () -> pagamentoService.iniciarPagamento(1L));
 
-        assertEquals(StatusPagamento.PAGO, resultado.getStatusPagamento());
+		// Não pode salvar alterações
+		verify(subcomandaRepository, never()).save(any());
+	}
 
-        verify(subcomandaRepository).save(subcomanda);
-    }
+	@Test
+	void naoDeveIniciarPagamentoComValorZero() {
 
-    @Test
-    void naoDeveConfirmarPagamentoPendente() {
+		// Mesa ocupada
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
 
-        when(subcomandaRepository.findById(1L))
-                .thenReturn(Optional.of(subcomanda));
+		// Sessão aberta
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> pagamentoService.confirmarPagamento(1L)
-        );
+		// João possui uma subcomanda com valor zero
+		subcomanda.setValorTotal(BigDecimal.ZERO);
+		sessao.adicionarSubcomanda(subcomanda);
 
-        verify(subcomandaRepository, never()).save(any());
-    }
+		// Consultas dos relacionamentos
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
 
-    @Test
-    void deveLancarExcecaoQuandoSubcomandaNaoExiste() {
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
 
-        when(subcomandaRepository.findById(99L))
-                .thenReturn(Optional.empty());
+		// Bloqueios pessimistas
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
 
-        assertThrows(
-                SubcomandaNaoEncontradaException.class,
-                () -> pagamentoService.consultarSubcomanda(99L)
-        );
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
 
-        verify(subcomandaRepository, never()).save(any());
-    }
-    @Test
-    void naoDeveIniciarPagamentoComValorNulo() {
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
 
-        subcomanda.setValorTotal(null);
+		// Pagamento com valor zero deve ser rejeitado
+		assertThrows(IllegalStateException.class, () -> pagamentoService.iniciarPagamento(1L));
 
-        when(subcomandaRepository.buscarPorIdComBloqueio(1L))
-                .thenReturn(Optional.of(subcomanda));
+		// Nenhuma alteração deve ser salva
+		verify(subcomandaRepository, never()).save(any());
 
-        assertThrows(
-                IllegalStateException.class,
-                () -> pagamentoService.iniciarPagamento(1L)
-        );
+		// O pagamento deve continuar pendente
+		assertEquals(StatusPagamento.PENDENTE, subcomanda.getStatusPagamento());
+	}
 
-        verify(subcomandaRepository, never()).save(any());
-    }
-    @Test
-    void naoDeveIniciarPagamentoQuandoSubcomandaNaoExiste() {
+	@Mock
+	private MesaRepository mesaRepository;
 
-        when(subcomandaRepository.buscarPorIdComBloqueio(99L))
-                .thenReturn(Optional.empty());
+	@Mock
+	private SessaoMesaRepository sessaoMesaRepository;
 
-        assertThrows(
-                SubcomandaNaoEncontradaException.class,
-                () -> pagamentoService.iniciarPagamento(99L)
-        );
+	@Test
+	void naoDeveIniciarPagamentoComValorNegativo() {
 
-        verify(subcomandaRepository, never()).save(any());
-    }
-    @Test
-    void naoDeveConfirmarPagamentoQuandoSubcomandaNaoExiste() {
-        when(subcomandaRepository.findById(99L))
-                .thenReturn(Optional.empty());
+		// Mesa ocupada
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
 
-        assertThrows(
-                SubcomandaNaoEncontradaException.class,
-                () -> pagamentoService.confirmarPagamento(99L)
-        );
+		// Sessão aberta
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
 
-        verify(subcomandaRepository, never()).save(any());
-    }
+		// João tenta pagar um valor negativo
+		subcomanda.setValorTotal(new BigDecimal("-25.00"));
+		sessao.adicionarSubcomanda(subcomanda);
+
+		// Consultas dos relacionamentos
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
+
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
+
+		// Bloqueios pessimistas
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
+
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
+
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
+
+		// O pagamento negativo deve ser rejeitado
+		assertThrows(IllegalStateException.class, () -> pagamentoService.iniciarPagamento(1L));
+
+		// Nenhuma alteração deve ser salva
+		verify(subcomandaRepository, never()).save(any());
+
+		// A subcomanda deve continuar pendente
+		assertEquals(StatusPagamento.PENDENTE, subcomanda.getStatusPagamento());
+	}
+
+	@Test
+	void deveConfirmarPagamentoEmProcessamento() {
+
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
+
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
+
+		// João está confirmando o pagamento
+		subcomanda.setStatusPagamento(StatusPagamento.PROCESSANDO);
+		sessao.adicionarSubcomanda(subcomanda);
+
+		// Maria ainda não pagou
+		Subcomanda maria = new Subcomanda("Maria", null);
+		maria.setId(2L);
+		maria.setStatusPagamento(StatusPagamento.PENDENTE);
+		sessao.adicionarSubcomanda(maria);
+
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
+
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
+
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
+
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
+
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
+
+		when(subcomandaRepository.buscarPorSessaoMesaIdComBloqueio(20L)).thenReturn(List.of(subcomanda, maria));
+
+		when(subcomandaRepository.save(any(Subcomanda.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		Subcomanda resultado = pagamentoService.confirmarPagamento(1L);
+
+		assertEquals(StatusPagamento.PAGO, resultado.getStatusPagamento());
+
+		// Maria ainda deve: a sessão permanece aberta
+		assertEquals(StatusSessao.ABERTA, sessao.getStatus());
+		assertEquals(StatusMesa.OCUPADA, mesa.getStatus());
+
+		verify(subcomandaRepository).save(subcomanda);
+	}
+
+	@Test
+	void naoDeveConfirmarPagamentoPendente() {
+
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
+
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
+
+		// João ainda não iniciou o pagamento
+		subcomanda.setStatusPagamento(StatusPagamento.PENDENTE);
+		sessao.adicionarSubcomanda(subcomanda);
+
+		// Consultas dos relacionamentos
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
+
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
+
+		// Bloqueios pessimistas
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
+
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
+
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
+
+		// Não pode confirmar pagamento que ainda está PENDENTE
+		assertThrows(IllegalStateException.class, () -> pagamentoService.confirmarPagamento(1L));
+
+		// Nenhuma alteração deve ser salva
+		verify(subcomandaRepository, never()).save(any());
+
+		// O estado das entidades deve permanecer inalterado
+		assertEquals(StatusPagamento.PENDENTE, subcomanda.getStatusPagamento());
+		assertEquals(StatusSessao.ABERTA, sessao.getStatus());
+		assertEquals(StatusMesa.OCUPADA, mesa.getStatus());
+	}
+
+	@Test
+	void deveLancarExcecaoQuandoSubcomandaNaoExiste() {
+
+		when(subcomandaRepository.findById(99L)).thenReturn(Optional.empty());
+
+		assertThrows(SubcomandaNaoEncontradaException.class, () -> pagamentoService.consultarSubcomanda(99L));
+
+		verify(subcomandaRepository, never()).save(any());
+	}
+
+	@Test
+	void naoDeveIniciarPagamentoComValorNulo() {
+
+		// Mesa ocupada
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
+
+		// Sessão aberta
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
+
+		// João possui uma subcomanda sem valor definido
+		subcomanda.setValorTotal(null);
+		sessao.adicionarSubcomanda(subcomanda);
+
+		// Consultas dos relacionamentos
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
+
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
+
+		// Bloqueios pessimistas
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
+
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
+
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
+
+		// Deve rejeitar pagamento sem valor definido
+		assertThrows(IllegalStateException.class, () -> pagamentoService.iniciarPagamento(1L));
+
+		// Nenhuma alteração deve ser salva
+		verify(subcomandaRepository, never()).save(any());
+
+		// O pagamento deve continuar pendente
+		assertEquals(StatusPagamento.PENDENTE, subcomanda.getStatusPagamento());
+	}
+
+	@Test
+	void naoDeveIniciarPagamentoQuandoSubcomandaNaoExiste() {
+
+		// A subcomanda 99 não possui sessão
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(99L)).thenReturn(Optional.empty());
+
+		// Deve rejeitar a tentativa de pagamento
+		assertThrows(SubcomandaNaoEncontradaException.class, () -> pagamentoService.iniciarPagamento(99L));
+
+		// Não deve tentar bloquear uma subcomanda inexistente
+		verify(subcomandaRepository, never()).buscarPorIdComBloqueio(anyLong());
+
+		// Nenhuma alteração deve ser salva
+		verify(subcomandaRepository, never()).save(any());
+	}
+
+	@Test
+	void naoDeveConfirmarPagamentoQuandoSubcomandaNaoExiste() {
+
+		// A subcomanda inexistente não possui sessão
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(99L)).thenReturn(Optional.empty());
+
+		// Deve rejeitar a confirmação
+		assertThrows(SubcomandaNaoEncontradaException.class, () -> pagamentoService.confirmarPagamento(99L));
+
+		// Não deve tentar bloquear uma subcomanda inexistente
+		verify(subcomandaRepository, never()).buscarPorIdComBloqueio(anyLong());
+
+		// Nenhuma alteração deve ser salva
+		verify(subcomandaRepository, never()).save(any());
+	}
+
+	@Test
+	void naoDeveLiberarMesaQuandoExistirSubcomandaPendente() {
+
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
+
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
+
+		subcomanda.setStatusPagamento(StatusPagamento.PROCESSANDO);
+		sessao.adicionarSubcomanda(subcomanda);
+
+		Subcomanda maria = new Subcomanda("Maria", null);
+		maria.setId(2L);
+		maria.setValorTotal(new BigDecimal("30.00"));
+		sessao.adicionarSubcomanda(maria);
+
+		// Localiza a sessão da subcomanda
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
+
+		// Localiza a mesa da sessão
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
+
+		// Bloqueia a mesa
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
+
+		// Bloqueia a sessão
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
+
+		// Bloqueia a subcomanda
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
+
+		// Consulta todas as subcomandas da sessão
+		when(subcomandaRepository.buscarPorSessaoMesaIdComBloqueio(20L)).thenReturn(List.of(subcomanda, maria));
+
+		when(subcomandaRepository.save(any(Subcomanda.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		pagamentoService.confirmarPagamento(1L);
+
+		assertEquals(StatusPagamento.PAGO, subcomanda.getStatusPagamento());
+		assertEquals(StatusPagamento.PENDENTE, maria.getStatusPagamento());
+
+		assertEquals(StatusSessao.ABERTA, sessao.getStatus());
+		assertEquals(StatusMesa.OCUPADA, mesa.getStatus());
+	}
+
+	@Test
+	void deveEncerrarSessaoELiberarMesaQuandoUltimaSubcomandaForPaga() {
+
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
+
+		SessaoMesa sessao = new SessaoMesa(mesa);
+		sessao.setId(20L);
+
+		subcomanda.setStatusPagamento(StatusPagamento.PROCESSANDO);
+		sessao.adicionarSubcomanda(subcomanda);
+
+		Subcomanda maria = new Subcomanda("Maria", null);
+		maria.setId(2L);
+		maria.setStatusPagamento(StatusPagamento.PAGO);
+		sessao.adicionarSubcomanda(maria);
+
+		// Localiza a sessão da subcomanda
+		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
+
+		// Localiza a mesa da sessão
+		when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L)).thenReturn(Optional.of(10L));
+
+		// Bloqueia a mesa
+		when(mesaRepository.findByIdComBloqueio(10L)).thenReturn(Optional.of(mesa));
+
+		// Bloqueia a sessão
+		when(sessaoMesaRepository.buscarPorIdComBloqueio(20L)).thenReturn(Optional.of(sessao));
+
+		// Bloqueia a subcomanda
+		when(subcomandaRepository.buscarPorIdComBloqueio(1L)).thenReturn(Optional.of(subcomanda));
+
+		// Retorna todas as subcomandas da sessão
+		when(subcomandaRepository.buscarPorSessaoMesaIdComBloqueio(20L)).thenReturn(List.of(subcomanda, maria));
+
+		when(subcomandaRepository.save(any(Subcomanda.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		pagamentoService.confirmarPagamento(1L);
+
+		assertEquals(StatusPagamento.PAGO, subcomanda.getStatusPagamento());
+		assertEquals(StatusSessao.ENCERRADA, sessao.getStatus());
+		assertEquals(StatusMesa.DISPONIVEL, mesa.getStatus());
+		assertNotNull(sessao.getDataEncerramento());
+	}
 }
