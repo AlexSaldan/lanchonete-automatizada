@@ -64,7 +64,7 @@ public class ComandaService {
                 request.numeroMesa()
         );
 
-        Mesa mesa = mesaRepository.findByNumero(request.numeroMesa())
+        Mesa mesa = mesaRepository.findByNumeroComBloqueio(request.numeroMesa())
                 .orElseThrow(() -> new MesaNaoEncontradaException(
                         "Mesa " + request.numeroMesa() + " não encontrada."
                 ));
@@ -124,7 +124,16 @@ public class ComandaService {
                 request.sessaoId()
         );
 
-        SessaoMesa sessao = sessaoMesaRepository.findById(request.sessaoId())
+        Long mesaId = sessaoMesaRepository
+                .buscarMesaIdPorSessaoId(request.sessaoId())
+                .orElseThrow(() -> new SessaoNaoEncontradaException(
+                        "Sessão não encontrada com ID: " + request.sessaoId()));
+
+        mesaRepository.findByIdComBloqueio(mesaId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Mesa não encontrada com ID: " + mesaId));
+
+        SessaoMesa sessao = sessaoMesaRepository.buscarPorIdComBloqueio(request.sessaoId())
                 .orElseThrow(() -> new SessaoNaoEncontradaException(
                         "Sessão não encontrada com ID: " + request.sessaoId()
                 ));
@@ -167,14 +176,50 @@ public class ComandaService {
                 request.subcomandaId()
         );
 
-        Subcomanda subcomanda = subcomandaRepository
-		.buscarPorIdComBloqueio(request.subcomandaId())
+        // Identifica a sessão vinculada à subcomanda.
+        Long sessaoId = subcomandaRepository
+                .buscarSessaoIdPorSubcomandaId(request.subcomandaId())
                 .orElseThrow(() -> new SubcomandaNaoEncontradaException(
                         "Subcomanda não encontrada."
                 ));
 
+        // Identifica a mesa vinculada à sessão.
+        Long mesaId = sessaoMesaRepository
+                .buscarMesaIdPorSessaoId(sessaoId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Mesa não encontrada para a sessão: " + sessaoId
+                ));
+
+        // Bloqueio 1: mesa.
+        Mesa mesa = mesaRepository.findByIdComBloqueio(mesaId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Mesa não encontrada com ID: " + mesaId
+                ));
+
+        // Bloqueio 2: sessão.
+        SessaoMesa sessao = sessaoMesaRepository
+                .buscarPorIdComBloqueio(sessaoId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Sessão não encontrada com ID: " + sessaoId
+                ));
+
+        // Bloqueio 3: subcomanda.
+        Subcomanda subcomanda = subcomandaRepository
+                .buscarPorIdComBloqueio(request.subcomandaId())
+                .orElseThrow(() -> new SubcomandaNaoEncontradaException(
+                        "Subcomanda não encontrada."
+                ));
+
+        // Confirma os vínculos após adquirir os bloqueios.
+        if (!sessao.getMesa().getId().equals(mesa.getId())
+                || !subcomanda.getSessaoMesa().getId().equals(sessaoId)) {
+            throw new IllegalStateException(
+                    "Os vínculos entre mesa, sessão e subcomanda são inconsistentes."
+            );
+        }
+
         // Regra 1: a sessão precisa estar aberta.
-        if (subcomanda.getSessaoMesa().getStatus() != StatusSessao.ABERTA) {
+        if (sessao.getStatus() != StatusSessao.ABERTA) {
             throw new IllegalStateException(
                     "Não é possível lançar itens em uma sessão " +
                     "que não está aberta."

@@ -86,7 +86,7 @@ class ComandaServiceTest {
                 "123.456.789-00"
         );
 
-        when(mesaRepository.findByNumero(1))
+        when(mesaRepository.findByNumeroComBloqueio(1))
                 .thenReturn(Optional.of(mesa));
 
         when(sessaoMesaRepository.save(any(SessaoMesa.class)))
@@ -143,7 +143,7 @@ class ComandaServiceTest {
                 null
         );
 
-        when(mesaRepository.findByNumero(1))
+        when(mesaRepository.findByNumeroComBloqueio(1))
                 .thenReturn(Optional.of(mesa));
 
         IllegalArgumentException excecao =
@@ -175,7 +175,7 @@ class ComandaServiceTest {
                         null
                 );
 
-        when(mesaRepository.findByNumero(1))
+        when(mesaRepository.findByNumeroComBloqueio(1))
                 .thenReturn(Optional.of(mesa));
 
         IllegalStateException excecao =
@@ -191,6 +191,36 @@ class ComandaServiceTest {
     }
 
     @Test
+    @DisplayName("Deve consultar a mesa com bloqueio ao abrir uma sessão")
+    void deveBloquearMesaAoAbrirSessao() {
+
+        AberturaSessaoRequest request = new AberturaSessaoRequest(
+                1,
+                "token-valido-123",
+                "João",
+                null
+        );
+
+        when(mesaRepository.findByNumeroComBloqueio(1))
+                .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.save(any(SessaoMesa.class)))
+                .thenAnswer(invocation -> {
+                    SessaoMesa salva = invocation.getArgument(0);
+                    salva.setId(1L);
+                    return salva;
+                });
+
+        when(sessaoMesaRepository.findById(1L))
+                .thenReturn(Optional.of(sessao));
+
+        comandaService.abrirSessao(request);
+
+        verify(mesaRepository).findByNumeroComBloqueio(1);
+        verify(mesaRepository, never()).findByNumero(1);
+    }
+
+    @Test
     @DisplayName("Deve adicionar cliente à sessão existente")
     void deveAdicionarClienteASessao() {
 
@@ -203,8 +233,14 @@ class ComandaServiceTest {
                         "987.654.321-00"
                 );
 
-        when(sessaoMesaRepository.findById(1L))
-                .thenReturn(Optional.of(sessao));
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+        .thenReturn(Optional.of(1L));
+
+when(mesaRepository.findByIdComBloqueio(1L))
+        .thenReturn(Optional.of(mesa));
+
+when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+        .thenReturn(Optional.of(sessao));
 
         when(sessaoMesaRepository.save(any(SessaoMesa.class)))
                 .thenAnswer(invocation -> {
@@ -246,6 +282,53 @@ class ComandaServiceTest {
     }
 
     @Test
+    @DisplayName("Deve bloquear a mesa antes de adicionar cliente")
+    void deveBloquearMesaAoAdicionarCliente() {
+
+        sessao.setStatus(StatusSessao.ABERTA);
+
+        AdicionarClienteRequest request =
+                new AdicionarClienteRequest(
+                        1L,
+                        "Maria",
+                        null
+                );
+
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+        .thenReturn(Optional.of(1L));
+
+        when(mesaRepository.findByIdComBloqueio(1L))
+        .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+        .thenReturn(Optional.of(sessao));
+
+        when(sessaoMesaRepository.save(any(SessaoMesa.class)))
+                .thenAnswer(invocation -> {
+                    SessaoMesa salva = invocation.getArgument(0);
+
+                    salva.getSubcomandas()
+                            .stream()
+                            .filter(sub -> sub.getId() == null)
+                            .forEach(sub -> sub.setId(2L));
+
+                    return salva;
+                });
+
+        when(itemPedidoRepository.findBySubcomandaId(2L))
+                .thenReturn(List.of());
+
+        comandaService.adicionarCliente(request);
+
+        var ordem = inOrder(mesaRepository, sessaoMesaRepository);
+
+        ordem.verify(sessaoMesaRepository).buscarMesaIdPorSessaoId(1L);
+        ordem.verify(mesaRepository).findByIdComBloqueio(1L);
+        ordem.verify(sessaoMesaRepository).buscarPorIdComBloqueio(1L);
+        ordem.verify(sessaoMesaRepository).save(sessao);
+    }
+
+    @Test
     @DisplayName("Deve lançar exceção ao adicionar cliente em sessão encerrada")
     void deveLancarExcecaoAoAdicionarClienteEmSessaoEncerrada() {
 
@@ -258,8 +341,14 @@ class ComandaServiceTest {
                         null
                 );
 
-        when(sessaoMesaRepository.findById(1L))
-                .thenReturn(Optional.of(sessao));
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+        .thenReturn(Optional.of(1L));
+
+        when(mesaRepository.findByIdComBloqueio(1L))
+        .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+        .thenReturn(Optional.of(sessao));
 
         assertThrows(
                 IllegalStateException.class,
@@ -278,6 +367,23 @@ class ComandaServiceTest {
                         2,
                         "Sem cebola"
                 );
+        // Prepara a mesa ocupada para receber pedidos.
+        mesa.setStatus(StatusMesa.OCUPADA);
+
+        // Identifica a sessão da subcomanda.
+        when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L))
+                .thenReturn(Optional.of(1L));
+
+        // Identifica a mesa da sessão.
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+                .thenReturn(Optional.of(1L));
+
+        // Simula os bloqueios na ordem: mesa -> sessão -> subcomanda.
+        when(mesaRepository.findByIdComBloqueio(1L))
+                .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+                .thenReturn(Optional.of(sessao));
 
         when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
@@ -328,6 +434,11 @@ class ComandaServiceTest {
 
         verify(subcomandaRepository)
                 .save(subcomanda);
+
+        var ordem = inOrder(mesaRepository, sessaoMesaRepository, subcomandaRepository);
+        ordem.verify(mesaRepository).findByIdComBloqueio(1L);
+        ordem.verify(sessaoMesaRepository).buscarPorIdComBloqueio(1L);
+        ordem.verify(subcomandaRepository).buscarPorIdComBloqueio(1L);
     }
 
     @Test
@@ -343,6 +454,19 @@ class ComandaServiceTest {
                         1,
                         null
                 );
+        mesa.setStatus(StatusMesa.OCUPADA);
+
+        when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(mesaRepository.findByIdComBloqueio(1L))
+                .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+                .thenReturn(Optional.of(sessao));
 
         when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
@@ -408,7 +532,7 @@ class ComandaServiceTest {
                 () -> comandaService.buscarExtratoMesa(99L)
         );
     }
-    
+
     @Test
     @DisplayName("Não deve lançar item quando a sessão estiver encerrada")
     void naoDeveLancarItemEmSessaoEncerrada() {
@@ -421,6 +545,19 @@ class ComandaServiceTest {
                 1,
                 null
         );
+        mesa.setStatus(StatusMesa.OCUPADA);
+
+        when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(mesaRepository.findByIdComBloqueio(1L))
+                .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+                .thenReturn(Optional.of(sessao));
 
         when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
@@ -446,6 +583,19 @@ class ComandaServiceTest {
                 1,
                 null
         );
+        mesa.setStatus(StatusMesa.OCUPADA);
+
+        when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(mesaRepository.findByIdComBloqueio(1L))
+                .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+                .thenReturn(Optional.of(sessao));
 
         when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
@@ -460,7 +610,7 @@ class ComandaServiceTest {
         verify(itemPedidoRepository, never())
                 .save(any(ItemPedido.class));
     }
-    
+
     @Test
     @DisplayName("Não deve lançar item quando o pagamento estiver processando")
     void naoDeveLancarItemEmSubcomandaProcessandoPagamento() {
@@ -473,6 +623,19 @@ class ComandaServiceTest {
                 1,
                 null
         );
+        mesa.setStatus(StatusMesa.OCUPADA);
+
+        when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(sessaoMesaRepository.buscarMesaIdPorSessaoId(1L))
+                .thenReturn(Optional.of(1L));
+
+        when(mesaRepository.findByIdComBloqueio(1L))
+                .thenReturn(Optional.of(mesa));
+
+        when(sessaoMesaRepository.buscarPorIdComBloqueio(1L))
+                .thenReturn(Optional.of(sessao));
 
         when(subcomandaRepository.buscarPorIdComBloqueio(1L))
                 .thenReturn(Optional.of(subcomanda));
