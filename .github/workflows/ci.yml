@@ -48,3 +48,84 @@ jobs:
           DB_TEST_USER: teste_ci
           DB_TEST_PASSWORD: senha_teste_ci
         run: ./mvnw clean verify
+
+      - name: Gerar painel de resultados dos testes
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob
+          import os
+          import xml.etree.ElementTree as ET
+
+          grupos = {
+              "Unitários": "target/surefire-reports/TEST-*.xml",
+              "Integração": "target/failsafe-reports/TEST-*.xml",
+          }
+
+          linhas = []
+          total = [0, 0, 0, 0]
+          arquivos_encontrados = 0
+
+          for nome, padrao in grupos.items():
+              valores = [0, 0, 0, 0]
+
+              for arquivo in glob.glob(padrao):
+                  arquivos_encontrados += 1
+                  raiz = ET.parse(arquivo).getroot()
+
+                  for indice, atributo in enumerate(
+                      ("tests", "failures", "errors", "skipped")
+                  ):
+                      valores[indice] += int(
+                          raiz.get(atributo, 0)
+                      )
+
+              total = [
+                  a + b
+                  for a, b in zip(total, valores)
+              ]
+
+              linhas.append((nome, *valores))
+
+          linhas.append(("**TOTAL**", *total))
+
+          with open(
+              os.environ["GITHUB_STEP_SUMMARY"],
+              "a",
+              encoding="utf-8"
+          ) as resumo:
+
+              resumo.write(
+                  "## 🍔 Lanchonete Automatizada — Testes\n\n"
+              )
+
+              resumo.write(
+                  "| Tipo | Testes | Falhas | Erros | Ignorados |\n"
+              )
+
+              resumo.write(
+                  "|---|---:|---:|---:|---:|\n"
+              )
+
+              for nome, testes, falhas, erros, ignorados in linhas:
+                  resumo.write(
+                      f"| {nome} | {testes} | "
+                      f"{falhas} | {erros} | {ignorados} |\n"
+                  )
+
+              if arquivos_encontrados == 0:
+                  resumo.write(
+                      "\n⚠️ Nenhum relatório de testes encontrado.\n"
+                  )
+
+              elif total[1] == 0 and total[2] == 0:
+                  resumo.write(
+                      "\n✅ Nenhuma falha ou erro registrado.\n"
+                  )
+
+              else:
+                  resumo.write(
+                      "\n❌ Existem testes com falhas ou erros.\n"
+                  )
+          PY
