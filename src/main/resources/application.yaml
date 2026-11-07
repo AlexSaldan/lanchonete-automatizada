@@ -15,4 +15,4 @@ spring:
     open-in-view: false
 
   flyway:
-    enabled: false
+    enabled: true
