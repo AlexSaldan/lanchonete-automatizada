@@ -29,6 +29,7 @@ import br.com.alexandrosaldan.lanchonete_automatizada.domain.exception.MesaNaoEn
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.MesaRepository;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.SessaoMesaRepository;
 import br.com.alexandrosaldan.lanchonete_automatizada.domain.repository.SubcomandaRepository;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @ExtendWith(MockitoExtension.class)
 class MesaServiceTest {
@@ -200,4 +201,69 @@ class MesaServiceTest {
 	    verify(mesaRepository, never()).save(any(Mesa.class));
 	    verify(sessaoMesaRepository, never()).save(any(SessaoMesa.class));
 	}
+	@Test
+	@DisplayName("Deve liberar mesa ocupada manualmente sem sessão aberta")
+	void deveLiberarMesaOcupadaManualmenteSemSessao() {
+
+	    mesaOcupada.setOcupacaoManual(true);
+
+	    when(mesaRepository.findByNumeroComBloqueio(2))
+	            .thenReturn(Optional.of(mesaOcupada));
+
+	    when(sessaoMesaRepository.findByMesaNumeroAndStatus(
+	            2, StatusSessao.ABERTA))
+	            .thenReturn(Optional.empty());
+
+	    when(mesaRepository.save(any(Mesa.class)))
+	            .thenReturn(mesaOcupada);
+
+	    Mesa resultado = mesaService.liberarMesa(2);
+
+	    assertEquals(StatusMesa.DISPONIVEL, resultado.getStatus());
+	    assertFalse(resultado.isOcupacaoManual());
+
+	    verify(mesaRepository, times(1)).save(mesaOcupada);
+	}
+	 @Test
+	 @DisplayName("Não deve liberar mesa sem sessão aberta e sem ocupação manual")
+	 void naoDeveLiberarMesaSemSessaoAbertaESemOcupacaoManual() {
+
+	     when(mesaRepository.findByNumeroComBloqueio(2))
+	             .thenReturn(Optional.of(mesaOcupada));
+
+	     when(sessaoMesaRepository.findByMesaNumeroAndStatus(
+	             2, StatusSessao.ABERTA))
+	             .thenReturn(Optional.empty());
+
+	     assertThrows(
+	             IllegalStateException.class,
+	             () -> mesaService.liberarMesa(2)
+	     );
+
+	     assertEquals(StatusMesa.OCUPADA, mesaOcupada.getStatus());
+
+	     verify(mesaRepository, never()).save(any(Mesa.class));
+	 }
+	 @Test
+	 @DisplayName("Não deve liberar mesa que já está disponível")
+	 void naoDeveLiberarMesaDisponivel() {
+
+	     when(mesaRepository.findByNumeroComBloqueio(1))
+	             .thenReturn(Optional.of(mesaDisponivel));
+
+	     IllegalStateException excecao = assertThrows(
+	             IllegalStateException.class,
+	             () -> mesaService.liberarMesa(1)
+	     );
+
+	     assertEquals(
+	             "A mesa 1 não está ocupada.",
+	             excecao.getMessage()
+	     );
+
+	     verify(sessaoMesaRepository, never())
+	             .findByMesaNumeroAndStatus(any(), any());
+
+	     verify(mesaRepository, never()).save(any(Mesa.class));
+	 }
 }

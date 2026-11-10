@@ -13,6 +13,7 @@ import br.com.alexandrosaldan.lanchonete_automatizada.domain.enums.StatusPagamen
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Serviço responsável por orquestrar as regras de negócio das Mesas.
@@ -71,6 +72,8 @@ public class MesaService {
         }
 
         mesa.setStatus(StatusMesa.OCUPADA);
+        mesa.setOcupacaoManual(true);
+
         return mesaRepository.save(mesa);
     }
 
@@ -86,11 +89,32 @@ public class MesaService {
                 .orElseThrow(() -> new MesaNaoEncontradaException(
                         "Mesa com número " + numero + " não encontrada."
                 ));
-        SessaoMesa sessao = sessaoMesaRepository.findByMesaNumeroAndStatus(
-                numero, StatusSessao.ABERTA
-        ).orElseThrow(() -> new IllegalStateException(
-                "Não existe sessão aberta para a mesa " + numero + "."
-        ));
+        if (mesa.getStatus() != StatusMesa.OCUPADA) {
+            throw new IllegalStateException(
+                    "A mesa " + numero + " não está ocupada."
+            );
+        }
+        Optional<SessaoMesa> sessaoEncontrada =
+                sessaoMesaRepository.findByMesaNumeroAndStatus(
+                        numero, StatusSessao.ABERTA
+                );
+
+        if (sessaoEncontrada.isEmpty()) {
+
+            if (!mesa.isOcupacaoManual()) {
+                throw new IllegalStateException(
+                        "A mesa " + numero
+                                + " não possui ocupação manual ativa nem sessão aberta."
+                );
+            }
+
+            mesa.setOcupacaoManual(false);
+            mesa.setStatus(StatusMesa.DISPONIVEL);
+
+            return mesaRepository.save(mesa);
+        }
+
+        SessaoMesa sessao = sessaoEncontrada.get();
         sessao = sessaoMesaRepository.buscarPorIdComBloqueio(sessao.getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "Sessão não encontrada durante a liberação da mesa " + numero + "."
@@ -124,7 +148,9 @@ public class MesaService {
         sessao.encerrarSessao();
         sessaoMesaRepository.save(sessao);
 
+        mesa.setOcupacaoManual(false);
         mesa.setStatus(StatusMesa.DISPONIVEL);
+
         return mesaRepository.save(mesa);
     }
 }

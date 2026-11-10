@@ -30,6 +30,8 @@ public class Mesa {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private StatusMesa status = StatusMesa.DISPONIVEL;
+    @Column(name = "ocupacao_manual", nullable = false)
+    private boolean ocupacaoManual = false;
 
     @Column(name = "token_qr_code", nullable = false, unique = true, length = 36)
     private String tokenQrCode;
@@ -64,6 +66,13 @@ public class Mesa {
 
     public StatusMesa getStatus() { return status; }
     public void setStatus(StatusMesa status) { this.status = status; }
+    public boolean isOcupacaoManual() {
+        return ocupacaoManual;
+    }
+
+    public void setOcupacaoManual(boolean ocupacaoManual) {
+        this.ocupacaoManual = ocupacaoManual;
+    }
 
     public String getTokenQrCode() { return tokenQrCode; }
     public void setTokenQrCode(String tokenQrCode) { this.tokenQrCode = tokenQrCode; }
