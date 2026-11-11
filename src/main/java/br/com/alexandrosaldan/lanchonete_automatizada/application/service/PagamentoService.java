@@ -92,11 +92,14 @@ public class PagamentoService {
 
 		List<Subcomanda> subcomandas = subcomandaRepository.buscarPorSessaoMesaIdComBloqueio(sessao.getId());
 
-		boolean todasPagas = !subcomandas.isEmpty()
-				&& subcomandas.stream().allMatch(s -> s.getStatusPagamento() == StatusPagamento.PAGO);
-		if (todasPagas) {
-			sessao.encerrarSessao();
-			sessao.getMesa().setStatus(StatusMesa.DISPONIVEL);
+		boolean todasRegularizadas = !subcomandas.isEmpty()
+		        && subcomandas.stream()
+		                .allMatch(Subcomanda::estaRegularizadaParaEncerramento);
+
+		if (todasRegularizadas) {
+		    sessao.encerrarSessao();
+		    sessao.getMesa().setOcupacaoManual(false);
+		    sessao.getMesa().setStatus(StatusMesa.DISPONIVEL);
 		}
 
 		log.info("Pagamento simulado confirmado para a subcomanda ID {}", subcomandaId);

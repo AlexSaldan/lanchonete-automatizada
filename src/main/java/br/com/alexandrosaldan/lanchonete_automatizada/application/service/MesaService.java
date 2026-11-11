@@ -135,7 +135,7 @@ public class MesaService {
         boolean existePagamentoPendente = subcomandas.isEmpty()
                 || subcomandas.stream()
                         .anyMatch(subcomanda ->
-                                subcomanda.getStatusPagamento() != StatusPagamento.PAGO
+                                !subcomanda.estaRegularizadaParaEncerramento()
                         );
 
         if (existePagamentoPendente) {

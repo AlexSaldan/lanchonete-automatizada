@@ -9,6 +9,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -151,6 +152,7 @@ class MesaServiceTest {
 
 		Subcomanda maria = new Subcomanda("Maria", null);
 		maria.setStatusPagamento(StatusPagamento.PENDENTE);
+		maria.setValorTotal(new BigDecimal("50.00"));
 
 		sessao.adicionarSubcomanda(joao);
 		sessao.adicionarSubcomanda(maria);
@@ -265,5 +267,45 @@ class MesaServiceTest {
 	             .findByMesaNumeroAndStatus(any(), any());
 
 	     verify(mesaRepository, never()).save(any(Mesa.class));
+	 }
+	 @Test
+	 @DisplayName("Deve liberar mesa com subcomanda pendente sem consumo")
+	 void deveLiberarMesaComSubcomandaPendenteSemConsumo() {
+
+	     // Arrange: prepara uma sessão com subcomanda sem consumo
+	     SessaoMesa sessao = new SessaoMesa(mesaOcupada);
+	     sessao.setId(10L);
+
+	     Subcomanda maria = new Subcomanda("Maria", null);
+	     maria.setStatusPagamento(StatusPagamento.PENDENTE);
+	     maria.setValorTotal(BigDecimal.ZERO);
+
+	     sessao.adicionarSubcomanda(maria);
+
+	     when(mesaRepository.findByNumeroComBloqueio(2))
+	             .thenReturn(Optional.of(mesaOcupada));
+
+	     when(sessaoMesaRepository.findByMesaNumeroAndStatus(
+	             2, StatusSessao.ABERTA))
+	             .thenReturn(Optional.of(sessao));
+
+	     when(sessaoMesaRepository.buscarPorIdComBloqueio(10L))
+	             .thenReturn(Optional.of(sessao));
+
+	     when(subcomandaRepository.buscarPorSessaoMesaIdComBloqueio(10L))
+	             .thenReturn(sessao.getSubcomandas());
+
+	     when(mesaRepository.save(any(Mesa.class)))
+	             .thenReturn(mesaOcupada);
+
+	     // Act: tenta liberar a mesa
+	     Mesa resultado = mesaService.liberarMesa(2);
+
+	     // Assert: confirma que a mesa e a sessão foram encerradas
+	     assertEquals(StatusMesa.DISPONIVEL, resultado.getStatus());
+	     assertEquals(StatusSessao.ENCERRADA, sessao.getStatus());
+
+	     verify(mesaRepository, times(1)).save(mesaOcupada);
+	     verify(sessaoMesaRepository, times(1)).save(sessao);
 	 }
 }

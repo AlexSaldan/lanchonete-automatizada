@@ -227,6 +227,7 @@ class PagamentoServiceTest {
 		Subcomanda maria = new Subcomanda("Maria", null);
 		maria.setId(2L);
 		maria.setStatusPagamento(StatusPagamento.PENDENTE);
+		maria.setValorTotal(new BigDecimal("30.00"));
 		sessao.adicionarSubcomanda(maria);
 
 		when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L)).thenReturn(Optional.of(20L));
@@ -260,6 +261,7 @@ class PagamentoServiceTest {
 		Mesa mesa = new Mesa(1, 4);
 		mesa.setId(10L);
 		mesa.setStatus(StatusMesa.OCUPADA);
+		mesa.setOcupacaoManual(true);
 
 		SessaoMesa sessao = new SessaoMesa(mesa);
 		sessao.setId(20L);
@@ -463,5 +465,62 @@ class PagamentoServiceTest {
 		assertEquals(StatusSessao.ENCERRADA, sessao.getStatus());
 		assertEquals(StatusMesa.DISPONIVEL, mesa.getStatus());
 		assertNotNull(sessao.getDataEncerramento());
+	}   
+	@Test
+	void deveEncerrarSessaoQuandoOutraSubcomandaNaoTemConsumo() {
+
+		Mesa mesa = new Mesa(1, 4);
+		mesa.setId(10L);
+		mesa.setStatus(StatusMesa.OCUPADA);
+		mesa.setOcupacaoManual(true);
+
+	    SessaoMesa sessao = new SessaoMesa(mesa);
+	    sessao.setId(20L);
+
+	    // João consumiu e está confirmando o pagamento
+	    subcomanda.setStatusPagamento(StatusPagamento.PROCESSANDO);
+	    subcomanda.setValorTotal(new BigDecimal("50.00"));
+	    sessao.adicionarSubcomanda(subcomanda);
+
+	    // Maria não consumiu nada
+	    Subcomanda maria = new Subcomanda("Maria", null);
+	    maria.setId(2L);
+	    maria.setStatusPagamento(StatusPagamento.PENDENTE);
+	    maria.setValorTotal(BigDecimal.ZERO);
+	    sessao.adicionarSubcomanda(maria);
+
+	    when(subcomandaRepository.buscarSessaoIdPorSubcomandaId(1L))
+	            .thenReturn(Optional.of(20L));
+
+	    when(sessaoMesaRepository.buscarMesaIdPorSessaoId(20L))
+	            .thenReturn(Optional.of(10L));
+
+	    when(mesaRepository.findByIdComBloqueio(10L))
+	            .thenReturn(Optional.of(mesa));
+
+	    when(sessaoMesaRepository.buscarPorIdComBloqueio(20L))
+	            .thenReturn(Optional.of(sessao));
+
+	    when(subcomandaRepository.buscarPorIdComBloqueio(1L))
+	            .thenReturn(Optional.of(subcomanda));
+
+	    when(subcomandaRepository.buscarPorSessaoMesaIdComBloqueio(20L))
+	            .thenReturn(List.of(subcomanda, maria));
+
+	    when(subcomandaRepository.save(any(Subcomanda.class)))
+	            .thenAnswer(invocation -> invocation.getArgument(0));
+
+	    // Confirma o pagamento de João
+	    pagamentoService.confirmarPagamento(1L);
+
+	    // João pagou e Maria não possui dívida
+	    assertEquals(StatusPagamento.PAGO, subcomanda.getStatusPagamento());
+	    assertEquals(StatusPagamento.PENDENTE, maria.getStatusPagamento());
+
+	    // A sessão deve ser encerrada automaticamente
+	    assertEquals(StatusSessao.ENCERRADA, sessao.getStatus());
+	    assertEquals(StatusMesa.DISPONIVEL, mesa.getStatus());
+	    assertNotNull(sessao.getDataEncerramento());
+	    assertFalse(mesa.isOcupacaoManual());
 	}
 }
