@@ -48,7 +48,7 @@ class ItemPedidoRepositoryIT {
 	void deveAguardarLiberacaoDoBloqueioPessimista() throws Exception {
 
 	    TransactionTemplate transacao = new TransactionTemplate(transactionManager);
-	    Long itemId = transacao.execute(status -> {
+	    Long itemId = transacao.execute(_ -> {
 	        Mesa mesa = mesaRepository.save(new Mesa(2001, 4));
 	        
 
@@ -84,7 +84,7 @@ class ItemPedidoRepositoryIT {
 	           
 	           try {
 	        	    Future<?> primeiraTransacao = executor.submit(() ->
-	        	        transacao.executeWithoutResult(status -> {
+            transacao.executeWithoutResult(_ -> {
 
 	        	            itemPedidoRepository.buscarPorIdComBloqueio(itemId)
 	        	                    .orElseThrow();
@@ -109,7 +109,7 @@ class ItemPedidoRepositoryIT {
 	        	    assertTrue(primeiroBloqueioAdquirido.await(5, TimeUnit.SECONDS));
 	        	    
 	        	    Future<?> segundaTransacao = executor.submit(() ->
-	        	    transacao.executeWithoutResult(status -> {
+            transacao.executeWithoutResult(_ -> {
 
 	        	        segundaTentativaIniciada.countDown();
 

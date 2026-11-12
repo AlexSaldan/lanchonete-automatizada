@@ -59,6 +59,25 @@ public class Subcomanda {
 
     public BigDecimal getValorTotal() { return valorTotal; }
     public void setValorTotal(BigDecimal valorTotal) { this.valorTotal = valorTotal; }
+    
+    /**
+     * Verifica se a subcomanda está financeiramente regularizada
+     * para permitir o encerramento da sessão.
+     *
+     * Uma subcomanda sem consumo e com pagamento pendente
+     * não representa uma dívida.
+     *
+     * Pagamentos em processamento não são considerados regularizados.
+     */
+    public boolean estaRegularizadaParaEncerramento() {
+        if (statusPagamento == StatusPagamento.PAGO) {
+            return true;
+        }
+
+        return statusPagamento == StatusPagamento.PENDENTE
+                && valorTotal != null
+                && valorTotal.compareTo(BigDecimal.ZERO) == 0;
+    }
 
     @Override
     public boolean equals(Object o) {
