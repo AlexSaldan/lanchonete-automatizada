@@ -16,13 +16,25 @@ O endpoint `PATCH /mesas/{numero}/liberar` utiliza esse serviço.
 
 ## Regra de negócio
 
-Uma mesa somente poderá ser liberada automaticamente quando:
+A liberação depende da situação atual da mesa:
 
-- Existir uma sessão aberta vinculada à mesa.
-- A sessão possuir pelo menos uma subcomanda.
-- Todas as subcomandas estiverem com status de pagamento `PAGO`.
+1. A mesa deve existir e estar com status `OCUPADA`.
+2. Se não houver sessão aberta, a liberação somente é permitida
+   quando a mesa possuir ocupação manual ativa.
+3. Se houver sessão aberta, ela deve pertencer à mesa e continuar aberta.
+4. Uma sessão aberta deve possuir pelo menos uma subcomanda.
+5. Todas as subcomandas devem estar regularizadas para encerramento.
 
-Caso alguma dessas condições não seja atendida, a liberação deverá ser impedida.
+Uma subcomanda é considerada regularizada quando:
+
+- Está com pagamento `PAGO`; ou
+- Está `PENDENTE`, mas seu valor total é zero.
+
+Pagamentos em processamento ou valores pendentes impedem
+a liberação de uma mesa com sessão aberta.
+
+A operação utiliza bloqueios pessimistas e controle transacional
+para proteger a consistência dos dados.
 
 ## Solução implementada
 
@@ -38,22 +50,29 @@ Durante a liberação, o serviço utiliza bloqueios para consultar:
 
 O objetivo é reduzir o risco de alterações concorrentes que comprometam a consistência dos dados.
 
-### 2. Validação dos pagamentos
+### 2. Validação das subcomandas
 
-O método `MesaService.liberarMesa()` verifica o status de pagamento de todas as subcomandas.
+Quando existe uma sessão aberta, o método `MesaService.liberarMesa()`
+consulta as subcomandas com bloqueio pessimista.
 
-Se não existirem subcomandas ou alguma apresentar status diferente de `PAGO`, a operação será rejeitada.
+A operação é rejeitada quando não existem subcomandas ou quando
+alguma delas não está regularizada para encerramento.
 
-### 3. Encerramento da sessão
+A validação utiliza o método
+`Subcomanda.estaRegularizadaParaEncerramento()`.
 
-Após a validação dos pagamentos, o serviço:
+### 3. Liberação e encerramento
 
-1. Encerra a sessão da mesa.
-2. Persiste o encerramento.
-3. Altera o status da mesa para `DISPONIVEL`.
-4. Persiste a alteração da mesa.
+**Sem sessão aberta:** quando existe ocupação manual ativa,
+o serviço desativa `ocupacaoManual`, altera a mesa para
+`DISPONIVEL` e persiste a alteração.
 
-Essas operações devem ocorrer dentro de uma transação para preservar a consistência dos dados.
+**Com sessão aberta:** após validar todas as subcomandas,
+o serviço encerra a sessão, desativa a ocupação manual,
+altera a mesa para `DISPONIVEL` e persiste as alterações.
+
+O processo ocorre dentro do controle transacional do serviço,
+protegendo a consistência entre mesa, sessão e subcomandas.
 
 ## Testes realizados
 
@@ -67,7 +86,7 @@ Foram implementados testes que verificam:
 
 ### Testes de integração
 
-A execução de `./mvnw verify` apresentou:
+Em uma execução histórica de `./mvnw verify`, foram registrados os seguintes resultados:
 
 - 83 testes executados na etapa de testes unitários e de componentes.
 - 4 testes de integração aprovados.
@@ -75,6 +94,8 @@ A execução de `./mvnw verify` apresentou:
 - Resultado final: `BUILD SUCCESS`.
 
 Entre os cenários de integração, foi testada a execução simultânea de pagamentos em subcomandas diferentes.
+
+Em uma execução local posterior de `./mvnw clean test`, 95 testes passaram, sem falhas, erros ou testes ignorados. Essa execução não incluiu uma nova validação dos testes de integração MySQL.
 
 Os resultados não comprovam, isoladamente, a cobertura de todos os cenários possíveis de concorrência.
 

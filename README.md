@@ -1,7 +1,7 @@
 # 🍔 Lanchonete Automatizada
 
 ![Java](https://img.shields.io/badge/Java-25-orange)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.1-green)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4.1.2-green)
 ![MySQL](https://img.shields.io/badge/MySQL-Database-blue)
 ![Maven](https://img.shields.io/badge/Maven-Build-red)
 ![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-yellow)
@@ -59,13 +59,14 @@ práticas de Engenharia de Software.
 | Tecnologia | Finalidade |
 |------------|------------|
 | Java 25 | Linguagem de programação |
-| Spring Boot 4.1.1 | Framework principal |
+| Spring Boot 4.1.2 | Framework principal |
 | Spring Web MVC | Desenvolvimento da API REST |
 | Spring Data JPA | Persistência de dados |
 | Hibernate | Mapeamento objeto-relacional (ORM) e gerenciamento de entidades |
 | Spring Transaction Management | Gerenciamento de transações com `@Transactional` |
 | Spring Validation | Validação de dados |
 | MySQL | Banco de dados relacional |
+| Flyway | Versionamento do esquema do banco de dados por migrações SQL |
 | MySQL InnoDB | Controle de concorrência com bloqueio pessimista (`PESSIMISTIC_WRITE`) |
 | H2 Database | Banco de dados em memória para testes automatizados |
 | Maven | Gerenciamento de dependências e build |
@@ -88,7 +89,6 @@ a experiência dos usuários e a automação dos processos.
 | Spring WebSocket | Atualização de pedidos em tempo real |
 | Spring Security | Autenticação e autorização |
 | Tokens de acesso (formato a definir) | Credenciais temporárias para clientes e sessões |
-| Flyway | Versionamento e evolução do esquema do banco de dados |
 | React | Desenvolvimento da interface web |
 | TypeScript | Desenvolvimento de interfaces com tipagem estática |
 | HTML5 e CSS3 | Estrutura e estilização das interfaces |
@@ -162,6 +162,25 @@ com validações, regras de negócio e tratamento de erros.
 - Atualização do estado de ocupação de mesas.
 - Liberação de mesas.
 - Tratamento de situações em que uma mesa não é encontrada.
+
+### Ocupação e liberação segura de mesas
+
+O sistema implementa operações de ocupação e liberação manual de mesas,
+com regras de negócio aplicadas na camada de serviço.
+
+- Controle de ocupação manual por meio do atributo `ocupacaoManual`.
+- Operações transacionais utilizando `@Transactional`.
+- Bloqueio pessimista para proteger alterações concorrentes.
+- Validação das subcomandas antes de liberar uma mesa com sessão aberta.
+- Impedimento da liberação quando existem pagamentos em processamento
+  ou valores pendentes.
+
+Uma subcomanda é considerada regularizada quando está `PAGO`
+ou quando está `PENDENTE` com valor total igual a zero.
+
+**Limitação atual:** essas regras não substituem autenticação
+e autorização de funcionários. O controle de acesso por perfil
+permanece planejado.
 
 ### Produtos
 
@@ -249,7 +268,9 @@ O roadmap apresenta as funcionalidades já implementadas e as próximas evoluç�
 - [ ] Integração com gateway de pagamento real.
 - [ ] Autenticação de funcionários e autorização por perfil com Spring Security.
 - [ ] Autorização individual por subcomanda e testes contra BOLA/IDOR.
-- [ ] Liberação presencial de mesas por funcionário e ativação temporária de clientes.
+- [x] Ocupação e liberação manual de mesas com validações transacionais.
+- [ ] Restrição da liberação presencial a funcionários autenticados.
+- [ ] Ativação temporária de clientes com credenciais de acesso.
 - [ ] Controle quantitativo de estoque e disponibilidade dos produtos.
 - [ ] Pagamento misto (dinheiro + Pix) com saldo restante por subcomanda.
 - [ ] Confirmação segura e idempotente de Pix por webhook do PSP.
@@ -412,14 +433,11 @@ São utilizados JUnit, Mockito, Spring Boot Test e H2.
 Os testes padrão utilizam o banco H2 em memória,
 permitindo sua execução sem um servidor MySQL local.
 
-Na última execução validada pelo GitHub Actions,
-77 testes automatizados passaram com sucesso,
-sem falhas ou erros.
+Na execução local validada com `./mvnw clean test`,
+**95 testes passaram**, sem falhas, erros ou testes ignorados.
 
-Em execução local pelo Spring Tools Suite (STS),
-80 testes automatizados passaram com sucesso,
-incluindo os testes de integração com MySQL,
-sem falhas ou erros.
+Essa execução não inclui os testes de integração MySQL
+executados separadamente pelo Maven Failsafe.
 
 Para executar:
 
@@ -445,22 +463,22 @@ simultâneas para validar o comportamento do banco de dados.
 
 Requisitos:
 
-- MySQL disponível em `localhost:3306`.
+- MySQL de testes disponível em `localhost:3307` (porta publicada pelo Docker Compose).
 - Banco de testes `lanchonete_automatizada_test`.
 - Usuário com permissões no banco de testes.
 - Variáveis `DB_TEST_USER` e `DB_TEST_PASSWORD` configuradas.
 
-Para executar somente esse teste:
+### Execução dos testes de integração
 
-```bash
-./mvnw -Dtest=SubcomandaRepositoryIT test
-```
+Os testes `*IT` são gerenciados pelo Maven Failsafe
+e executados durante o ciclo `verify`.
 
-Para executar somente o teste de concorrência da cozinha:
+Antes da execução, configure `DB_TEST_USER` e
+`DB_TEST_PASSWORD` e confirme que o banco utilizado
+é exclusivamente `lanchonete_automatizada_test`.
 
-```bash
-./mvnw -Dtest=ItemPedidoRepositoryIT test
-```
+Com o ambiente de testes isolado e configurado,
+execute `./mvnw verify`.
 
 > **Atenção:** o perfil `mysql-test` utiliza
 > `ddl-auto: create-drop`. Execute esse teste
@@ -557,6 +575,7 @@ Algumas entregas realizadas:
 - [PR #10 — Integração contínua com GitHub Actions](https://github.com/AlexSaldan/lanchonete-automatizada/pull/10)
 - [PR #11 — Docker e Docker Compose](https://github.com/AlexSaldan/lanchonete-automatizada/pull/11)
 - [PR #21 — Cozinha automatizada e controle de concorrência](https://github.com/AlexSaldan/lanchonete-automatizada/pull/21)
+- [PR #24 — Atualização do GitHub Actions para v5](https://github.com/AlexSaldan/lanchonete-automatizada/pull/24)
 
 Os Pull Requests registram a evolução das funcionalidades,
 as alterações realizadas e o processo de revisão do código.
