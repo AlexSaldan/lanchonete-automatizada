@@ -184,10 +184,52 @@ class ComandaServiceTest {
                         () -> comandaService.abrirSessao(request)
                 );
 
-        assertTrue(
+        assertEquals(
+                "Não é possível abrir uma sessão na mesa 1. Status atual: OCUPADA",
                 excecao.getMessage()
-                        .contains("já possui uma sessão aberta")
         );
+
+        assertEquals(StatusMesa.OCUPADA, mesa.getStatus());
+
+        verify(mesaRepository, never()).save(any(Mesa.class));
+        verify(sessaoMesaRepository, never()).save(any(SessaoMesa.class));
+
+    }
+
+
+    @Test
+    @DisplayName("Não deve permitir abrir sessão em mesa reservada")
+    void naoDevePermitirAbrirSessaoEmMesaReservada() {
+
+        // Arrange: prepara uma mesa reservada.
+        mesa.setStatus(StatusMesa.RESERVADA);
+
+        AberturaSessaoRequest request = new AberturaSessaoRequest(
+                1,
+                "token-valido-123",
+                "João",
+                null
+        );
+
+        when(mesaRepository.findByNumeroComBloqueio(1))
+                .thenReturn(Optional.of(mesa));
+
+        // Act: tenta abrir uma sessão na mesa reservada.
+        IllegalStateException excecao = assertThrows(
+                IllegalStateException.class,
+                () -> comandaService.abrirSessao(request)
+        );
+
+        // Assert: confirma que a abertura foi impedida.
+        assertEquals(
+                "Não é possível abrir uma sessão na mesa 1. Status atual: RESERVADA",
+                excecao.getMessage()
+        );
+
+        assertEquals(StatusMesa.RESERVADA, mesa.getStatus());
+
+        verify(mesaRepository, never()).save(any(Mesa.class));
+        verify(sessaoMesaRepository, never()).save(any(SessaoMesa.class));
     }
 
     @Test

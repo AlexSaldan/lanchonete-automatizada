@@ -107,8 +107,39 @@ class MesaServiceTest {
 
 		IllegalStateException excecao = assertThrows(IllegalStateException.class, () -> mesaService.ocuparMesa(2));
 
-		assertEquals("A mesa 2 já está ocupada.", excecao.getMessage());
+		assertEquals(
+		        "A mesa 2 não está disponível para ocupação. Status atual: OCUPADA",
+		        excecao.getMessage()
+		);
 		verify(mesaRepository, never()).save(any());
+	}
+	@Test
+	@DisplayName("Não deve permitir ocupar uma mesa reservada")
+	void naoDevePermitirOcuparMesaReservada() {
+
+	    // Arrange: prepara uma mesa reservada.
+	    Mesa mesaReservada = new Mesa(3, 4);
+	    mesaReservada.setId(3L);
+	    mesaReservada.setStatus(StatusMesa.RESERVADA);
+
+	    when(mesaRepository.findByNumeroComBloqueio(3))
+	            .thenReturn(Optional.of(mesaReservada));
+
+	    // Act: tenta ocupar a mesa reservada.
+	    IllegalStateException excecao = assertThrows(
+	            IllegalStateException.class,
+	            () -> mesaService.ocuparMesa(3)
+	    );
+
+	    // Assert: confirma que a ocupação foi impedida.
+	    assertEquals(
+	            "A mesa 3 não está disponível para ocupação. Status atual: RESERVADA",
+	            excecao.getMessage()
+	    );
+
+	    assertEquals(StatusMesa.RESERVADA, mesaReservada.getStatus());
+
+	    verify(mesaRepository, never()).save(any(Mesa.class));
 	}
 
 	@Test

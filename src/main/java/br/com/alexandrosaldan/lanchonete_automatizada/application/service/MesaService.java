@@ -67,8 +67,12 @@ public class MesaService {
                         "Mesa com número " + numero + " não encontrada."
                 ));
 
-        if (mesa.getStatus() == StatusMesa.OCUPADA) {
-            throw new IllegalStateException("A mesa " + numero + " já está ocupada.");
+        if (mesa.getStatus() != StatusMesa.DISPONIVEL) {
+            throw new IllegalStateException(
+                    "A mesa " + numero
+                            + " não está disponível para ocupação. Status atual: "
+                            + mesa.getStatus()
+            );
         }
 
         mesa.setStatus(StatusMesa.OCUPADA);

@@ -81,10 +81,12 @@ public class ComandaService {
             );
         }
 
-        if (mesa.getStatus() == StatusMesa.OCUPADA) {
+        if (mesa.getStatus() != StatusMesa.DISPONIVEL) {
             throw new IllegalStateException(
-                    "A mesa já possui uma sessão aberta. " +
-                    "Adicione o cliente à sessão existente."
+                    "Não é possível abrir uma sessão na mesa "
+                            + mesa.getNumero()
+                            + ". Status atual: "
+                            + mesa.getStatus()
             );
         }
 
