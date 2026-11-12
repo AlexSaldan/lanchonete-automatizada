@@ -32,6 +32,21 @@ O método `MesaService.liberarMesa()`:
 A regularização das subcomandas é verificada pelo método
 `Subcomanda.estaRegularizadaParaEncerramento()`.
 
+## Persistência e evolução do banco de dados
+
+A ocupação manual é persistida na tabela `mesas` por meio
+da coluna `ocupacao_manual`.
+
+A alteração foi introduzida pela migration Flyway
+`V4__add_ocupacao_manual_to_mesas.sql`.
+
+A migration adiciona uma coluna do tipo `BOOLEAN`,
+com restrição `NOT NULL` e valor padrão `FALSE`.
+
+Essa evolução permite registrar a ocupação manual
+sem alterar diretamente o esquema do banco fora
+do processo de migrações versionadas.
+
 ## Alternativas consideradas
 
 ### Apenas validar os estados antes de salvar
